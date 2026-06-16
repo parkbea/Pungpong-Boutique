@@ -9,6 +9,8 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@fontsource/noto-sans-kr": "^5.2.9",
+    "@fontsource/noto-serif-kr": "^5.2.9",
     "framer-motion": "^12.40.0",
     "next": "16.2.9",
     "react": "19.2.4",
