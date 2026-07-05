@@ -1,19 +1,23 @@
 import type { Metadata, Viewport } from "next";
-import { Noto_Sans_KR, Noto_Serif_KR } from "next/font/google";
+// Fonts are bundled via npm (@fontsource) instead of next/font/google so the
+// build never needs to reach fonts.gstatic.com — networks that block gstatic
+// (e.g. some corporate firewalls) would otherwise fail to compile.
+import "@fontsource/noto-sans-kr/latin-400.css";
+import "@fontsource/noto-sans-kr/latin-500.css";
+import "@fontsource/noto-sans-kr/latin-600.css";
+import "@fontsource/noto-sans-kr/latin-700.css";
+import "@fontsource/noto-sans-kr/korean-400.css";
+import "@fontsource/noto-sans-kr/korean-500.css";
+import "@fontsource/noto-sans-kr/korean-600.css";
+import "@fontsource/noto-sans-kr/korean-700.css";
+import "@fontsource/noto-serif-kr/latin-400.css";
+import "@fontsource/noto-serif-kr/latin-600.css";
+import "@fontsource/noto-serif-kr/latin-700.css";
+import "@fontsource/noto-serif-kr/korean-400.css";
+import "@fontsource/noto-serif-kr/korean-600.css";
+import "@fontsource/noto-serif-kr/korean-700.css";
 import "./globals.css";
 import Pwa from "@/components/Pwa";
-
-const notoSans = Noto_Sans_KR({
-  variable: "--font-sans-kr",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-});
-
-const notoSerif = Noto_Serif_KR({
-  variable: "--font-serif-kr",
-  subsets: ["latin"],
-  weight: ["400", "600", "700"],
-});
 
 export const metadata: Metadata = {
   title: "뿡뽕의상실 - AI 의상 디자인 스튜디오",
@@ -48,10 +52,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="ko"
-      className={`${notoSans.variable} ${notoSerif.variable} h-full antialiased`}
-    >
+    <html lang="ko" className="h-full antialiased">
       <body className="flex min-h-full flex-col bg-paper text-ink">
         {children}
         <Pwa />

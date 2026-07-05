@@ -3,8 +3,8 @@
 @theme {
   --color-paper: #faf8f3;
   --color-ink: #23211f;
-  --font-sans: var(--font-sans-kr), "Apple SD Gothic Neo", sans-serif;
-  --font-serif: var(--font-serif-kr), "Apple SD Gothic Neo", serif;
+  --font-sans: "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --font-serif: "Noto Serif KR", "Apple SD Gothic Neo", serif;
   --font-mono: ui-monospace, "Cascadia Code", Consolas, monospace;
 }
 
