@@ -1,56 +1,85 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+/* eslint-disable @next/next/no-img-element */
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
+  BACKGROUNDS,
+  CARRIES,
+  CARRY_STYLES,
   COLLARS,
   COLORS,
   DEFAULT_DESIGN,
+  DETAILS,
   Design,
   DetailId,
   FITS,
   GARMENTS,
   GarmentId,
+  MATERIALS,
   NECKLINES,
   PATTERNS,
+  SHOES,
   SLEEVES,
+  SOCK_LENGTHS,
+  STYLE_PRESETS,
+  StylePresetId,
+  applyStylePreset,
   buildPrompt,
+  colorOf,
   detailOptionsFor,
   isDressLike,
+  labelOf,
   lengthOptionsFor,
   materialOptionsFor,
+  shoeColorOf,
   shoeOptionsFor,
 } from "@/lib/design";
-import Preview from "./Preview";
 import GarmentIcon from "./GarmentIcon";
+import Preview from "./Preview";
 import StepIndicator from "./StepIndicator";
 import { ColorChips, Field, SegmentGroup, ToggleChips } from "./controls";
 
 type Phase = "idle" | "loading" | "done" | "error";
 
+type ReferencePhoto = {
+  dataUrl: string;
+  name: string;
+};
+
+const MAX_STEP = 5;
+
 const stepVariants = {
-  enter: (dir: number) => ({ opacity: 0, x: dir * 36 }),
+  enter: (dir: number) => ({ opacity: 0, x: dir * 28 }),
   center: { opacity: 1, x: 0 },
-  exit: (dir: number) => ({ opacity: 0, x: dir * -36 }),
+  exit: (dir: number) => ({ opacity: 0, x: dir * -28 }),
 };
 
 export default function Designer() {
   const [step, setStep] = useState(1);
   const [dir, setDir] = useState(1);
   const [design, setDesign] = useState<Design>(DEFAULT_DESIGN);
-
+  const [referencePhoto, setReferencePhoto] = useState<ReferencePhoto | null>(null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
   const [phase, setPhase] = useState<Phase>("idle");
   const [image, setImage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const lastPromptRef = useRef<string | null>(null);
+  const lastGenerationKeyRef = useRef<string | null>(null);
   const loadingRef = useRef(false);
 
   const prompt = buildPrompt(design);
+  const finalPrompt = useMemo(
+    () => buildFinalPrompt(prompt, Boolean(referencePhoto)),
+    [prompt, referencePhoto],
+  );
+  const generationKey = `${finalPrompt}|photo:${referencePhoto?.dataUrl.length ?? 0}:${referencePhoto?.dataUrl.slice(0, 80) ?? ""}`;
 
   const goTo = useCallback((next: number) => {
+    const bounded = Math.min(MAX_STEP, Math.max(1, next));
     setStep((cur) => {
-      setDir(next > cur ? 1 : -1);
-      return next;
+      setDir(bounded > cur ? 1 : -1);
+      return bounded;
     });
   }, []);
 
@@ -58,26 +87,28 @@ export default function Designer() {
     setDesign((d) => ({ ...d, [key]: value }));
   }, []);
 
-  const selectGarment = useCallback(
-    (garment: GarmentId) => {
-      setDesign((d) => {
-        const valid = lengthOptionsFor(garment).some((o) => o.id === d.length);
-        const allowed = new Set(detailOptionsFor(garment).map((o) => o.id));
-        const mats = materialOptionsFor(garment);
-        const materialOk = mats.some((m) => m.id === d.material);
-        const shoeOk = shoeOptionsFor(garment).some((s) => s.id === d.shoe);
-        return {
-          ...d,
-          garment,
-          length: valid ? d.length : "midi",
-          details: d.details.filter((x) => allowed.has(x)),
-          material: materialOk ? d.material : mats[0].id,
-          shoe: shoeOk ? d.shoe : "none",
-        };
-      });
-    },
-    [],
-  );
+  const applyPreset = useCallback((preset: StylePresetId) => {
+    setDesign((d) => applyStylePreset(d, preset));
+  }, []);
+
+  const selectGarment = useCallback((garment: GarmentId) => {
+    setDesign((d) => {
+      const validLength = lengthOptionsFor(garment).some((o) => o.id === d.length);
+      const allowedDetails = new Set(detailOptionsFor(garment).map((o) => o.id));
+      const materials = materialOptionsFor(garment);
+      const materialOk = materials.some((m) => m.id === d.material);
+      const shoeOk = shoeOptionsFor(garment).some((s) => s.id === d.shoe);
+
+      return {
+        ...d,
+        garment,
+        length: validLength ? d.length : lengthOptionsFor(garment)[0].id,
+        details: d.details.filter((x) => allowedDetails.has(x)),
+        material: materialOk ? d.material : materials[0].id,
+        shoe: shoeOk ? d.shoe : "none",
+      };
+    });
+  }, []);
 
   const toggleDetail = useCallback((id: DetailId) => {
     setDesign((d) => ({
@@ -88,204 +119,380 @@ export default function Designer() {
     }));
   }, []);
 
-  const generate = useCallback(async (currentPrompt: string) => {
-    if (loadingRef.current) return; // 중복 클릭 방지
-    loadingRef.current = true;
-    setPhase("loading");
-    setError(null);
-    try {
-      const res = await fetch("/api/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: currentPrompt }),
-      });
-      const data = (await res.json().catch(() => null)) as
-        | { dataUrl?: string; error?: string }
-        | null;
-      if (!res.ok || !data?.dataUrl) {
-        throw new Error(data?.error ?? `요청이 실패했습니다. (HTTP ${res.status})`);
+  const generate = useCallback(
+    async (currentPrompt: string, currentKey: string) => {
+      if (loadingRef.current) return;
+      loadingRef.current = true;
+      setPhase("loading");
+      setError(null);
+
+      try {
+        const res = await fetch("/api/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            prompt: currentPrompt,
+            referenceImageDataUrl: referencePhoto?.dataUrl,
+          }),
+        });
+        const data = (await res.json().catch(() => null)) as
+          | { dataUrl?: string; error?: string }
+          | null;
+
+        if (!res.ok || !data?.dataUrl) {
+          throw new Error(data?.error ?? `이미지 생성에 실패했습니다. (HTTP ${res.status})`);
+        }
+
+        lastGenerationKeyRef.current = currentKey;
+        setImage(data.dataUrl);
+        setPhase("done");
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "알 수 없는 오류가 발생했습니다.");
+        setPhase("error");
+      } finally {
+        loadingRef.current = false;
       }
-      lastPromptRef.current = currentPrompt;
-      setImage(data.dataUrl);
-      setPhase("done");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "알 수 없는 오류가 발생했습니다.");
-      setPhase("error");
-    } finally {
-      loadingRef.current = false;
-    }
-  }, []);
+    },
+    [referencePhoto],
+  );
 
-  // 3단계 진입 시(또는 디자인이 바뀐 채 재진입 시) 자동 생성
   useEffect(() => {
-    if (step === 3 && !loadingRef.current && lastPromptRef.current !== prompt) {
-      void generate(prompt);
+    if (
+      step === MAX_STEP &&
+      !loadingRef.current &&
+      lastGenerationKeyRef.current !== generationKey
+    ) {
+      void generate(finalPrompt, generationKey);
     }
-  }, [step, prompt, generate]);
-
-  const loading = phase === "loading";
+  }, [step, finalPrompt, generationKey, generate]);
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 pb-20 sm:px-6">
       <StepIndicator step={step} onStepClick={goTo} />
 
-      <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(320px,400px)] lg:gap-10">
-        {/* ---- left: step content ---- */}
-        <div className="order-2 min-w-0 lg:order-1">
+      <div className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,1fr)_390px] lg:gap-8">
+        <section className="order-2 min-w-0 rounded-3xl border border-ink/8 bg-white/62 p-4 shadow-[0_18px_50px_-28px_rgba(35,33,31,0.22)] backdrop-blur sm:p-6 lg:order-1">
           <AnimatePresence mode="wait" custom={dir} initial={false}>
-            <motion.section
+            <motion.div
               key={step}
               custom={dir}
               variants={stepVariants}
               initial="enter"
               animate="center"
               exit="exit"
-              transition={{ duration: 0.28, ease: "easeOut" }}
+              transition={{ duration: 0.24, ease: "easeOut" }}
             >
               {step === 1 && (
-                <StepGarment
-                  value={design.garment}
-                  onSelect={(g) => {
-                    selectGarment(g);
-                    setTimeout(() => goTo(2), 220);
+                <StepMood
+                  applyPreset={applyPreset}
+                  referencePhoto={referencePhoto}
+                  photoError={photoError}
+                  onPhotoChange={(photo) => {
+                    setPhotoError(null);
+                    setReferencePhoto(photo);
+                    lastGenerationKeyRef.current = null;
                   }}
+                  onPhotoError={setPhotoError}
                 />
               )}
               {step === 2 && (
-                <StepDetails
+                <StepShape
+                  design={design}
+                  selectGarment={selectGarment}
+                  update={update}
+                />
+              )}
+              {step === 3 && <StepSurface design={design} update={update} />}
+              {step === 4 && (
+                <StepStyling
                   design={design}
                   update={update}
                   toggleDetail={toggleDetail}
                 />
               )}
-              {step === 3 && (
+              {step === 5 && (
                 <StepResult
                   phase={phase}
                   image={image}
                   error={error}
-                  loading={loading}
+                  loading={phase === "loading"}
+                  hasReferencePhoto={Boolean(referencePhoto)}
                   onRegenerate={() => {
-                    lastPromptRef.current = null;
-                    void generate(prompt);
+                    lastGenerationKeyRef.current = null;
+                    void generate(finalPrompt, generationKey);
                   }}
                 />
               )}
-            </motion.section>
+            </motion.div>
           </AnimatePresence>
 
-          {/* nav */}
-          <div className="mt-8 flex items-center justify-between">
+          <div className="mt-8 flex items-center justify-between gap-3">
             {step > 1 ? (
-              <button
-                type="button"
-                onClick={() => goTo(step - 1)}
-                className="rounded-full border border-ink/20 px-6 py-2.5 text-sm text-ink/70 transition-colors hover:border-ink/50 hover:text-ink"
-              >
-                ← 이전
+              <button type="button" onClick={() => goTo(step - 1)} className="soft-button">
+                이전
               </button>
             ) : (
               <span />
             )}
-            {step < 3 && (
-              <button
-                type="button"
-                onClick={() => goTo(step + 1)}
-                className="rounded-full bg-ink px-7 py-2.5 text-sm font-medium text-paper shadow-md transition-transform hover:scale-[1.03] active:scale-95"
-              >
-                {step === 2 ? "AI 이미지 생성 →" : "다음 →"}
+            {step < MAX_STEP && (
+              <button type="button" onClick={() => goTo(step + 1)} className="primary-button">
+                {step === 4 ? "AI 이미지 생성" : "다음"}
               </button>
             )}
           </div>
-        </div>
+        </section>
 
-        {/* ---- right: live preview (작은 화면에서는 위로) ---- */}
         <aside className="order-1 lg:order-2 lg:sticky lg:top-6 lg:self-start">
-          <div className="rounded-3xl border border-ink/8 bg-white/80 p-4 shadow-[0_18px_50px_-20px_rgba(35,33,31,0.18)] backdrop-blur sm:p-5">
-            <div className="mb-1 flex items-baseline justify-between">
-              <h2 className="font-serif text-lg text-ink">실시간 미리보기</h2>
-              <span className="text-xs text-ink/45">
-                {GARMENTS.find((g) => g.id === design.garment)?.ko}
-              </span>
-            </div>
-            <div className="mx-auto max-w-[240px] lg:max-w-none">
-              <Preview design={design} />
-            </div>
-            <div className="mt-3 rounded-2xl border border-ink/8 bg-paper p-4">
-              <div className="mb-1.5 flex items-center justify-between">
-                <p className="text-[11px] font-semibold tracking-widest text-ink/45 uppercase">
-                  Image Prompt
-                </p>
-                <CopyButton text={prompt} />
-              </div>
-              <motion.p
-                key={prompt}
-                initial={{ opacity: 0.4 }}
-                animate={{ opacity: 1 }}
-                className="font-mono text-[11.5px] leading-relaxed break-keep text-ink/70"
-              >
-                {prompt}
-              </motion.p>
-            </div>
-          </div>
+          <PreviewPanel design={design} prompt={finalPrompt} referencePhoto={referencePhoto} />
         </aside>
       </div>
     </div>
   );
 }
 
-/* ---------- step 1 ---------- */
-
-function StepGarment({
-  value,
-  onSelect,
+function StepMood({
+  applyPreset,
+  referencePhoto,
+  photoError,
+  onPhotoChange,
+  onPhotoError,
 }: {
-  value: GarmentId;
-  onSelect: (g: GarmentId) => void;
+  applyPreset: (preset: StylePresetId) => void;
+  referencePhoto: ReferencePhoto | null;
+  photoError: string | null;
+  onPhotoChange: (photo: ReferencePhoto | null) => void;
+  onPhotoError: (message: string | null) => void;
 }) {
   return (
     <div>
       <StepHeading
-        title="어떤 옷을 만들까요?"
-        sub="디자인할 옷의 종류를 선택해 주세요."
+        eyebrow="사진과 분위기"
+        title="인물 사진을 올리고, 전체 무드를 먼저 잡아요."
+        sub="사진을 올리면 AI에게 이 사람의 얼굴, 자세, 체형은 유지하고 옷만 새 디자인으로 입히도록 요청합니다."
       />
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-        {GARMENTS.map((g) => {
-          const selected = g.id === value;
-          return (
-            <motion.button
-              key={g.id}
-              type="button"
-              onClick={() => onSelect(g.id)}
-              whileHover={{ y: -4 }}
-              whileTap={{ scale: 0.96 }}
-              className={`group flex flex-col items-center gap-1 rounded-2xl border bg-white/80 p-4 pb-3 shadow-sm transition-[border-color,box-shadow] duration-200 ${
-                selected
-                  ? "border-ink shadow-[0_12px_30px_-12px_rgba(35,33,31,0.35)]"
-                  : "border-ink/10 hover:border-ink/35 hover:shadow-md"
-              }`}
-            >
-              <GarmentIcon
-                garment={g.id}
-                className={`h-24 w-auto transition-colors duration-200 ${
-                  selected ? "text-ink" : "text-ink/45 group-hover:text-ink/70"
-                }`}
-              />
-              <span
-                className={`text-sm ${selected ? "font-semibold text-ink" : "text-ink/65"}`}
-              >
-                {g.ko}
-              </span>
-            </motion.button>
-          );
-        })}
+
+      <div className="mb-6">
+        <PhotoUploader
+          referencePhoto={referencePhoto}
+          photoError={photoError}
+          onPhotoChange={onPhotoChange}
+          onPhotoError={onPhotoError}
+        />
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        {STYLE_PRESETS.map((preset) => (
+          <button
+            key={preset.id}
+            type="button"
+            onClick={() => applyPreset(preset.id)}
+            className="group rounded-2xl border border-ink/10 bg-paper/70 p-4 text-left transition hover:border-ink/35 hover:bg-white hover:shadow-md"
+          >
+            <span className="text-lg font-semibold text-ink">{preset.ko}</span>
+            <span className="mt-2 block text-sm leading-relaxed text-ink/55">
+              {preset.id === "romantic" && "프릴, 플로럴, 부드러운 컬러를 먼저 깔아둡니다."}
+              {preset.id === "minimal" && "선이 단정하고 색 대비가 분명한 착장으로 시작합니다."}
+              {preset.id === "vintage" && "체크, 코듀로이, 포켓처럼 손맛 있는 분위기입니다."}
+              {preset.id === "casual" && "데일리한 소재와 편한 소품을 중심으로 잡습니다."}
+            </span>
+          </button>
+        ))}
       </div>
     </div>
   );
 }
 
-/* ---------- step 2 ---------- */
+function PhotoUploader({
+  referencePhoto,
+  photoError,
+  onPhotoChange,
+  onPhotoError,
+}: {
+  referencePhoto: ReferencePhoto | null;
+  photoError: string | null;
+  onPhotoChange: (photo: ReferencePhoto | null) => void;
+  onPhotoError: (message: string | null) => void;
+}) {
+  const [busy, setBusy] = useState(false);
 
-function StepDetails({
+  return (
+    <div className="rounded-2xl border border-dashed border-ink/18 bg-white/72 p-4">
+      <div className="grid gap-4 sm:grid-cols-[136px_minmax(0,1fr)] sm:items-center">
+        <div className="aspect-[3/4] overflow-hidden rounded-xl border border-ink/10 bg-paper">
+          {referencePhoto ? (
+            <img
+              src={referencePhoto.dataUrl}
+              alt="업로드한 참고 인물 사진"
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center px-4 text-center text-xs leading-relaxed text-ink/40">
+              참고 사진 없음
+            </div>
+          )}
+        </div>
+
+        <div>
+          <p className="text-sm font-semibold text-ink">인물 사진 업로드</p>
+          <p className="mt-1 max-w-xl text-sm leading-relaxed break-keep text-ink/55">
+            사진은 브라우저에서 작게 압축한 뒤 생성 요청에만 사용합니다. 결과는 원본 사진을
+            완전히 보존하는 합성이 아니라, AI가 참고해서 다시 그리는 방식입니다.
+          </p>
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <label className="primary-button cursor-pointer">
+              {busy ? "사진 준비 중" : referencePhoto ? "사진 바꾸기" : "사진 선택"}
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                className="sr-only"
+                disabled={busy}
+                onChange={async (event) => {
+                  const file = event.currentTarget.files?.[0];
+                  event.currentTarget.value = "";
+                  if (!file) return;
+                  setBusy(true);
+                  onPhotoError(null);
+                  try {
+                    const dataUrl = await compressImage(file);
+                    onPhotoChange({ dataUrl, name: file.name });
+                  } catch (e) {
+                    onPhotoError(e instanceof Error ? e.message : "사진을 불러오지 못했습니다.");
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              />
+            </label>
+            {referencePhoto && (
+              <button type="button" className="soft-button" onClick={() => onPhotoChange(null)}>
+                사진 제거
+              </button>
+            )}
+          </div>
+          {referencePhoto && (
+            <p className="mt-2 truncate text-xs text-ink/42">{referencePhoto.name}</p>
+          )}
+          {photoError && <p className="mt-2 text-sm text-red-600">{photoError}</p>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StepShape({
+  design,
+  selectGarment,
+  update,
+}: {
+  design: Design;
+  selectGarment: (g: GarmentId) => void;
+  update: <K extends keyof Design>(key: K, value: Design[K]) => void;
+}) {
+  return (
+    <div>
+      <StepHeading
+        eyebrow="옷의 골격"
+        title="종류, 핏, 길이를 먼저 정리해요."
+        sub="프리뷰의 실루엣이 가장 크게 바뀌는 단계입니다."
+      />
+      <div className="space-y-6">
+        <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+          {GARMENTS.map((g) => {
+            const selected = g.id === design.garment;
+            return (
+              <motion.button
+                key={g.id}
+                type="button"
+                onClick={() => selectGarment(g.id)}
+                whileTap={{ scale: 0.97 }}
+                className={`group flex min-h-28 flex-col items-center justify-center gap-1 rounded-2xl border bg-white/80 p-3 transition ${
+                  selected
+                    ? "border-ink shadow-[0_12px_28px_-16px_rgba(35,33,31,0.45)]"
+                    : "border-ink/10 hover:border-ink/35"
+                }`}
+              >
+                <GarmentIcon
+                  garment={g.id}
+                  className={`h-16 w-auto ${selected ? "text-ink" : "text-ink/45 group-hover:text-ink/70"}`}
+                />
+                <span className="text-sm font-medium text-ink/75">{g.ko}</span>
+              </motion.button>
+            );
+          })}
+        </div>
+        <div className="grid gap-5 md:grid-cols-2">
+          <Field label="핏">
+            <SegmentGroup name="핏" options={FITS} value={design.fit} onChange={(v) => update("fit", v)} />
+          </Field>
+          <Field label={isDressLike(design.garment) ? "기장" : "길이"}>
+            <SegmentGroup name="길이" options={lengthOptionsFor(design.garment)} value={design.length} onChange={(v) => update("length", v)} />
+          </Field>
+          {design.garment !== "leggings" && (
+            <>
+              <Field label="소매">
+                <SegmentGroup name="소매" options={SLEEVES} value={design.sleeve} onChange={(v) => update("sleeve", v)} />
+              </Field>
+              <Field label="넥라인">
+                <SegmentGroup name="넥라인" options={NECKLINES} value={design.neckline} onChange={(v) => update("neckline", v)} />
+              </Field>
+              <Field label="칼라">
+                <SegmentGroup name="칼라" options={COLLARS} value={design.collar} onChange={(v) => update("collar", v)} />
+              </Field>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StepSurface({
+  design,
+  update,
+}: {
+  design: Design;
+  update: <K extends keyof Design>(key: K, value: Design[K]) => void;
+}) {
+  return (
+    <div>
+      <StepHeading
+        eyebrow="색과 촉감"
+        title="색상, 패턴, 소재를 한 번에 맞춰요."
+        sub="의상 자체의 인상이 결정되는 단계라 미리보기를 보면서 고르는 게 좋습니다."
+      />
+      <div className="space-y-6">
+        <Field label="메인 색상">
+          <ColorChips colors={COLORS} value={design.colorId} onChange={(v) => update("colorId", v)} />
+        </Field>
+        <div className="grid gap-5 md:grid-cols-2">
+          <Field label="패턴">
+            <SegmentGroup name="패턴" options={PATTERNS} value={design.pattern} onChange={(v) => update("pattern", v)} />
+          </Field>
+          <Field label="소재">
+            <SegmentGroup name="소재" options={materialOptionsFor(design.garment)} value={design.material} onChange={(v) => update("material", v)} />
+          </Field>
+        </div>
+        <AnimatePresence initial={false}>
+          {design.pattern !== "solid" && (
+            <motion.div
+              key="pattern-color"
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="overflow-hidden"
+            >
+              <Field label="패턴 색상">
+                <ColorChips colors={COLORS} value={design.patternColorId} onChange={(v) => update("patternColorId", v)} />
+              </Field>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+}
+
+function StepStyling({
   design,
   update,
   toggleDetail,
@@ -297,159 +504,103 @@ function StepDetails({
   return (
     <div>
       <StepHeading
-        title="디테일을 다듬어 볼까요?"
-        sub="선택할 때마다 오른쪽 미리보기와 프롬프트가 함께 바뀝니다."
+        eyebrow="마지막 스타일링"
+        title="장식, 신발, 소품, 배경을 더해요."
+        sub="필수 요소는 위에서 끝났고, 여기서는 착장 분위기를 풍성하게 만드는 옵션만 모았습니다."
       />
       <div className="space-y-6">
-        <Field label="핏">
-          <SegmentGroup
-            name="핏"
-            options={FITS}
-            value={design.fit}
-            onChange={(v) => update("fit", v)}
-          />
+        <Field label="디테일">
+          <ToggleChips options={detailOptionsFor(design.garment)} values={design.details} onToggle={toggleDetail} />
         </Field>
-        <Field label={isDressLike(design.garment) ? "기장 (미니 · 미디 · 맥시)" : "기장"}>
-          <SegmentGroup
-            name="기장"
-            options={lengthOptionsFor(design.garment)}
-            value={design.length}
-            onChange={(v) => update("length", v)}
-          />
-        </Field>
-        {design.garment !== "leggings" && (
-          <>
-            <Field label="소매">
-              <SegmentGroup
-                name="소매"
-                options={SLEEVES}
-                value={design.sleeve}
-                onChange={(v) => update("sleeve", v)}
-              />
-            </Field>
-            <Field label="넥라인">
-              <SegmentGroup
-                name="넥라인"
-                options={NECKLINES}
-                value={design.neckline}
-                onChange={(v) => update("neckline", v)}
-              />
-            </Field>
-            <Field label="깃 (칼라)">
-              <SegmentGroup
-                name="칼라"
-                options={COLLARS}
-                value={design.collar}
-                onChange={(v) => update("collar", v)}
-              />
-            </Field>
-          </>
+
+        <div className="grid gap-5 md:grid-cols-2">
+          <Field label="신발">
+            <SegmentGroup name="신발" options={shoeOptionsFor(design.garment)} value={design.shoe} onChange={(v) => update("shoe", v)} />
+          </Field>
+          <Field label="배경">
+            <SegmentGroup name="배경" options={BACKGROUNDS} value={design.background} onChange={(v) => update("background", v)} />
+          </Field>
+        </div>
+
+        {design.shoe !== "none" && (
+          <Field label="신발 색상">
+            <ColorChips colors={COLORS} value={design.shoeColorId} onChange={(v) => update("shoeColorId", v)} />
+          </Field>
         )}
-        <Field label="색상">
-          <ColorChips
-            colors={COLORS}
-            value={design.colorId}
-            onChange={(v) => update("colorId", v)}
-          />
+
+        <Field label="양말">
+          <button
+            type="button"
+            onClick={() => update("socksEnabled", !design.socksEnabled)}
+            className={design.socksEnabled ? "primary-button" : "soft-button"}
+          >
+            {design.socksEnabled ? "양말 포함" : "양말 추가"}
+          </button>
+          {design.socksEnabled && (
+            <div className="mt-4 grid gap-5 md:grid-cols-2">
+              <div>
+                <p className="mb-2 text-xs text-ink/50">양말 색상</p>
+                <ColorChips colors={COLORS} value={design.socksColorId} onChange={(v) => update("socksColorId", v)} />
+              </div>
+              <div>
+                <p className="mb-2 text-xs text-ink/50">양말 길이</p>
+                <SegmentGroup name="양말 길이" options={SOCK_LENGTHS} value={design.socksLength} onChange={(v) => update("socksLength", v)} />
+              </div>
+            </div>
+          )}
         </Field>
-        <Field label="패턴">
-          <SegmentGroup
-            name="패턴"
-            options={PATTERNS}
-            value={design.pattern}
-            onChange={(v) => update("pattern", v)}
-          />
-          <AnimatePresence initial={false}>
-            {design.pattern !== "solid" && (
-              <motion.div
-                key="pattern-color"
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.25, ease: "easeOut" }}
-                className="overflow-hidden"
-              >
-                <p className="mt-3 mb-2 text-xs text-ink/50">패턴 색상</p>
-                <div className="p-1">
-                  <ColorChips
-                    colors={COLORS}
-                    value={design.patternColorId}
-                    onChange={(v) => update("patternColorId", v)}
-                  />
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </Field>
-        <Field label="소재">
-          <SegmentGroup
-            name="소재"
-            options={materialOptionsFor(design.garment)}
-            value={design.material}
-            onChange={(v) => update("material", v)}
-          />
-        </Field>
-        <Field label="디테일 (중복 선택 가능)">
+
+        <Field label="가방 / 소품">
           <ToggleChips
-            options={detailOptionsFor(design.garment)}
-            values={design.details}
-            onToggle={toggleDetail}
+            options={CARRIES.filter((carry) => carry.id !== "none")}
+            values={design.carry}
+            onToggle={(id) =>
+              update(
+                "carry",
+                design.carry.includes(id)
+                  ? design.carry.filter((carry) => carry !== id)
+                  : [...design.carry, id],
+              )
+            }
           />
         </Field>
-        <Field label="신발">
-          <SegmentGroup
-            name="신발"
-            options={shoeOptionsFor(design.garment)}
-            value={design.shoe}
-            onChange={(v) => update("shoe", v)}
-          />
-          <AnimatePresence initial={false}>
-            {design.shoe !== "none" && (
-              <motion.div
-                key="shoe-color"
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.25, ease: "easeOut" }}
-                className="overflow-hidden"
-              >
-                <p className="mt-3 mb-2 text-xs text-ink/50">신발 색상</p>
-                <div className="p-1">
-                  <ColorChips
-                    colors={COLORS}
-                    value={design.shoeColorId}
-                    onChange={(v) => update("shoeColorId", v)}
-                  />
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </Field>
+
+        {design.carry.length > 0 && (
+          <div className="grid gap-5 md:grid-cols-2">
+            <Field label="소품 스타일">
+              <SegmentGroup name="소품 스타일" options={CARRY_STYLES} value={design.carryStyle} onChange={(v) => update("carryStyle", v)} />
+            </Field>
+            <Field label="소품 색상">
+              <ColorChips colors={COLORS} value={design.carryColorId} onChange={(v) => update("carryColorId", v)} />
+            </Field>
+          </div>
+        )}
       </div>
     </div>
   );
 }
-
-/* ---------- step 3 ---------- */
 
 function StepResult({
   phase,
   image,
   error,
   loading,
+  hasReferencePhoto,
   onRegenerate,
 }: {
   phase: Phase;
   image: string | null;
   error: string | null;
   loading: boolean;
+  hasReferencePhoto: boolean;
   onRegenerate: () => void;
 }) {
   return (
     <div>
       <StepHeading
-        title="AI가 디자인을 완성하고 있어요"
-        sub="AI가 선택하신 디테일로 스튜디오 화보를 생성합니다."
+        eyebrow="AI 이미지"
+        title={hasReferencePhoto ? "사진 속 사람이 새 옷을 입은 이미지로 만들고 있어요." : "선택한 디자인으로 이미지를 만들고 있어요."}
+        sub="완성 후에도 이전 단계로 돌아가 수정하면 새 이미지로 다시 생성됩니다."
       />
 
       <div className="relative mx-auto aspect-square w-full max-w-xl overflow-hidden rounded-3xl border border-ink/10 bg-white shadow-[0_18px_50px_-20px_rgba(35,33,31,0.2)]">
@@ -468,8 +619,8 @@ function StepResult({
                 animate={{ rotate: 360 }}
                 transition={{ repeat: Infinity, duration: 0.9, ease: "linear" }}
               />
-              <p className="relative text-sm text-ink/55">
-                이미지를 생성하는 중입니다… (10~20초)
+              <p className="relative px-6 text-center text-sm text-ink/55">
+                이미지를 생성하는 중입니다. 참고 사진을 쓰면 조금 더 걸릴 수 있어요.
               </p>
             </motion.div>
           )}
@@ -482,15 +633,8 @@ function StepResult({
               exit={{ opacity: 0 }}
               className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-8 text-center"
             >
-              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-xl">
-                ⚠️
-              </span>
               <p className="text-sm leading-relaxed text-ink/70">{error}</p>
-              <button
-                type="button"
-                onClick={onRegenerate}
-                className="rounded-full bg-ink px-6 py-2.5 text-sm font-medium text-paper transition-transform hover:scale-[1.03] active:scale-95"
-              >
+              <button type="button" onClick={onRegenerate} className="primary-button">
                 다시 시도
               </button>
             </motion.div>
@@ -517,20 +661,11 @@ function StepResult({
           animate={{ opacity: 1, y: 0 }}
           className="mt-6 flex flex-wrap items-center justify-center gap-3"
         >
-          <button
-            type="button"
-            onClick={onRegenerate}
-            disabled={loading}
-            className="rounded-full border border-ink/20 px-6 py-2.5 text-sm text-ink/75 transition-colors hover:border-ink/50 hover:text-ink disabled:opacity-50"
-          >
-            ↺ 재생성
+          <button type="button" onClick={onRegenerate} disabled={loading} className="soft-button disabled:opacity-50">
+            다시 생성
           </button>
-          <a
-            href={image}
-            download="ppungppong-design.jpg"
-            className="rounded-full bg-ink px-7 py-2.5 text-sm font-medium text-paper shadow-md transition-transform hover:scale-[1.03] active:scale-95"
-          >
-            ↓ 이미지 다운로드
+          <a href={image} download="ppungppong-design.jpg" className="primary-button">
+            이미지 다운로드
           </a>
         </motion.div>
       )}
@@ -538,13 +673,122 @@ function StepResult({
   );
 }
 
-/* ---------- shared ---------- */
+function PreviewPanel({
+  design,
+  prompt,
+  referencePhoto,
+}: {
+  design: Design;
+  prompt: string;
+  referencePhoto: ReferencePhoto | null;
+}) {
+  const summary = useMemo(() => buildSummary(design, referencePhoto), [design, referencePhoto]);
 
-function StepHeading({ title, sub }: { title: string; sub: string }) {
+  return (
+    <div className="overflow-hidden rounded-3xl border border-ink/8 bg-white/82 shadow-[0_24px_70px_-30px_rgba(35,33,31,0.25)] backdrop-blur">
+      <div className="flex items-center justify-between border-b border-ink/8 px-5 py-4">
+        <div>
+          <p className="text-[11px] font-semibold tracking-[0.2em] text-ink/40 uppercase">Live Styling Board</p>
+          <h2 className="mt-1 font-serif text-xl text-ink">{labelOf(GARMENTS, design.garment)}</h2>
+        </div>
+        <span className="rounded-full bg-ink px-3 py-1 text-xs font-semibold text-paper">
+          실시간
+        </span>
+      </div>
+
+      {referencePhoto && (
+        <div className="border-b border-ink/8 bg-white/55 px-5 py-3">
+          <div className="flex items-center gap-3">
+            <img
+              src={referencePhoto.dataUrl}
+              alt="참고 인물 사진"
+              className="h-14 w-11 rounded-lg object-cover"
+            />
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-ink/75">참고 사진 사용 중</p>
+              <p className="truncate text-xs text-ink/42">{referencePhoto.name}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="bg-[linear-gradient(180deg,#fbf8ef_0%,#f4eee2_100%)] px-5 pt-4">
+        <div className="mx-auto max-w-[280px]">
+          <Preview design={design} />
+        </div>
+      </div>
+
+      <div className="space-y-4 p-5">
+        <div className="grid grid-cols-2 gap-2">
+          {summary.map((item) => (
+            <div key={item.label} className="rounded-2xl border border-ink/8 bg-paper/70 px-3 py-2">
+              <p className="text-[11px] text-ink/42">{item.label}</p>
+              <p className="mt-0.5 truncate text-sm font-semibold text-ink/80">{item.value}</p>
+            </div>
+          ))}
+        </div>
+
+        <details className="group rounded-2xl border border-ink/8 bg-paper/70 p-4">
+          <summary className="flex cursor-pointer list-none items-center justify-between text-sm font-semibold text-ink/65">
+            AI 프롬프트
+            <span className="text-xs text-ink/35 group-open:hidden">열기</span>
+            <span className="hidden text-xs text-ink/35 group-open:inline">닫기</span>
+          </summary>
+          <div className="mt-3 border-t border-ink/8 pt-3">
+            <div className="mb-2 flex justify-end">
+              <CopyButton text={prompt} />
+            </div>
+            <motion.p
+              key={prompt}
+              initial={{ opacity: 0.45 }}
+              animate={{ opacity: 1 }}
+              className="font-mono text-[11px] leading-relaxed break-words text-ink/65"
+            >
+              {prompt}
+            </motion.p>
+          </div>
+        </details>
+      </div>
+    </div>
+  );
+}
+
+function buildSummary(design: Design, referencePhoto: ReferencePhoto | null) {
+  const detailLabels = design.details
+    .map((id) => DETAILS.find((o) => o.id === id)?.ko)
+    .filter(Boolean)
+    .slice(0, 2)
+    .join(", ");
+  const carryLabels = design.carry
+    .map((id) => CARRIES.find((o) => o.id === id)?.ko)
+    .filter(Boolean)
+    .slice(0, 2)
+    .join(", ");
+
+  return [
+    { label: "사진", value: referencePhoto ? "인물 사진 적용" : "디자인만 생성" },
+    { label: "핏 / 길이", value: `${labelOf(FITS, design.fit)} · ${labelOf(lengthOptionsFor(design.garment), design.length)}` },
+    { label: "색 / 패턴", value: `${colorOf(design).ko} · ${labelOf(PATTERNS, design.pattern)}` },
+    { label: "소재", value: labelOf(MATERIALS, design.material) },
+    { label: "신발", value: design.shoe === "none" ? "없음" : `${shoeColorOf(design).ko} ${labelOf(SHOES, design.shoe)}` },
+    { label: "디테일", value: detailLabels || carryLabels || "깔끔하게" },
+  ];
+}
+
+function StepHeading({
+  eyebrow,
+  title,
+  sub,
+}: {
+  eyebrow: string;
+  title: string;
+  sub: string;
+}) {
   return (
     <header className="mb-6">
-      <h1 className="font-serif text-2xl text-ink sm:text-[28px]">{title}</h1>
-      <p className="mt-1.5 text-sm text-ink/55">{sub}</p>
+      <p className="mb-2 text-[11px] font-semibold tracking-[0.22em] text-ink/38 uppercase">{eyebrow}</p>
+      <h1 className="max-w-2xl font-serif text-2xl leading-tight text-ink sm:text-[30px]">{title}</h1>
+      <p className="mt-2 max-w-2xl text-sm leading-relaxed break-keep text-ink/55">{sub}</p>
     </header>
   );
 }
@@ -563,9 +807,60 @@ function CopyButton({ text }: { text: string }) {
           /* clipboard unavailable */
         }
       }}
-      className="text-[11px] text-ink/45 transition-colors hover:text-ink"
+      className="text-[11px] font-semibold text-ink/45 transition-colors hover:text-ink"
     >
-      {copied ? "복사됨 ✓" : "복사"}
+      {copied ? "복사됨" : "복사"}
     </button>
   );
+}
+
+function buildFinalPrompt(basePrompt: string, hasReferencePhoto: boolean): string {
+  if (!hasReferencePhoto) return basePrompt;
+
+  return [
+    "Use the uploaded reference photo as the person reference.",
+    "Keep the same person, face, body shape, skin tone, hair, pose, and camera angle as much as possible.",
+    "Replace only the outfit with the clothing design described below.",
+    "The person must be fully clothed, age-appropriate, non-sexual, natural, and realistic.",
+    "Do not change the person's identity. Do not add revealing clothing.",
+    `Outfit design: ${basePrompt}`,
+  ].join(" ");
+}
+
+function compressImage(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    if (!file.type.startsWith("image/")) {
+      reject(new Error("이미지 파일만 업로드할 수 있습니다."));
+      return;
+    }
+    if (file.size > 12 * 1024 * 1024) {
+      reject(new Error("12MB 이하의 사진을 올려 주세요."));
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("사진을 읽지 못했습니다."));
+    reader.onload = () => {
+      const image = new Image();
+      image.onerror = () => reject(new Error("사진을 불러오지 못했습니다."));
+      image.onload = () => {
+        const maxSide = 720;
+        const scale = Math.min(1, maxSide / Math.max(image.width, image.height));
+        const width = Math.max(1, Math.round(image.width * scale));
+        const height = Math.max(1, Math.round(image.height * scale));
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          reject(new Error("사진을 처리하지 못했습니다."));
+          return;
+        }
+        ctx.drawImage(image, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", 0.72));
+      };
+      image.src = String(reader.result);
+    };
+    reader.readAsDataURL(file);
+  });
 }

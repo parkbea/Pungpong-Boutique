@@ -24,6 +24,20 @@ export type PatternId =
   | "heart"
   | "star"
   | "leopard";
+export type SockLengthId = "ankle" | "mid" | "knee" | "over";
+export type CarryId =
+  | "none"
+  | "bouquet"
+  | "backpack"
+  | "handbag"
+  | "doll"
+  | "wand"
+  | "balloon"
+  | "phone"
+  | "headphones";
+export type CarryStyleId = "simple" | "minimal" | "bow" | "floral";
+export type BackgroundId = "flower" | "france" | "sea" | "space" | "room" | "zoo";
+export type StylePresetId = "romantic" | "minimal" | "vintage" | "casual";
 export type MaterialId =
   | "cotton"
   | "denim"
@@ -117,7 +131,6 @@ export const NECKLINES: Option<NecklineId>[] = [
   { id: "square", ko: "스퀘어", en: "square" },
 ];
 
-// en은 "{색상} {패턴} pattern" 형태로 조합되는 수식어 (solid 제외)
 export const PATTERNS: Option<PatternId>[] = [
   { id: "solid", ko: "무지", en: "solid plain" },
   { id: "stripe", ko: "스트라이프", en: "striped" },
@@ -127,7 +140,7 @@ export const PATTERNS: Option<PatternId>[] = [
   { id: "dot", ko: "도트", en: "polka dot" },
   { id: "zigzag", ko: "지그재그", en: "zigzag chevron" },
   { id: "heart", ko: "하트", en: "heart-print" },
-  { id: "star", ko: "스타", en: "star-print" },
+  { id: "star", ko: "별", en: "star-print" },
   { id: "leopard", ko: "레오파드", en: "leopard-print" },
 ];
 
@@ -139,8 +152,49 @@ export const COLLARS: Option<CollarId>[] = [
   { id: "ribbon", ko: "리본 타이", en: "a ribbon bow tie collar" },
 ];
 
+export const SOCK_LENGTHS: Option<SockLengthId>[] = [
+  { id: "ankle", ko: "발목", en: "ankle" },
+  { id: "mid", ko: "중간", en: "mid-calf" },
+  { id: "knee", ko: "무릎", en: "knee-high" },
+  { id: "over", ko: "오버니", en: "over-the-knee" },
+];
+
+export const CARRIES: Option<CarryId>[] = [
+  { id: "none", ko: "없음", en: "" },
+  { id: "bouquet", ko: "꽃다발", en: "a bouquet" },
+  { id: "backpack", ko: "백팩", en: "a backpack" },
+  { id: "handbag", ko: "핸드백", en: "a handbag" },
+  { id: "doll", ko: "인형", en: "a plush doll" },
+  { id: "wand", ko: "마술봉", en: "a magic wand" },
+  { id: "balloon", ko: "풍선", en: "a balloon" },
+  { id: "phone", ko: "휴대폰", en: "a smartphone" },
+  { id: "headphones", ko: "헤드폰", en: "headphones" },
+];
+
+export const CARRY_STYLES: Option<CarryStyleId>[] = [
+  { id: "simple", ko: "심플", en: "simple" },
+  { id: "minimal", ko: "미니멀", en: "minimal" },
+  { id: "bow", ko: "리본", en: "bow-accented" },
+  { id: "floral", ko: "플로럴", en: "floral" },
+];
+
+export const BACKGROUNDS: Option<BackgroundId>[] = [
+  { id: "flower", ko: "꽃밭", en: "flower field" },
+  { id: "france", ko: "프랑스", en: "Paris street in France" },
+  { id: "sea", ko: "바다", en: "seaside beach" },
+  { id: "space", ko: "우주", en: "outer space" },
+  { id: "room", ko: "방", en: "cozy room" },
+  { id: "zoo", ko: "동물원", en: "zoo" },
+];
+
+export const STYLE_PRESETS: Option<StylePresetId>[] = [
+  { id: "romantic", ko: "로맨틱", en: "romantic" },
+  { id: "minimal", ko: "미니멀", en: "minimal" },
+  { id: "vintage", ko: "빈티지", en: "vintage" },
+  { id: "casual", ko: "캐주얼", en: "casual" },
+];
+
 export interface GarmentScoped<T extends string> extends Option<T> {
-  /** 적용 가능한 옷 종류 (생략 시 전체) */
   for?: GarmentId[];
 }
 
@@ -183,7 +237,7 @@ export function materialOptionsFor(garment: GarmentId): MaterialOption[] {
 
 export const SHOES: Option<ShoeId>[] = [
   { id: "none", ko: "없음", en: "" },
-  { id: "heels", ko: "구두(힐)", en: "high-heeled pumps" },
+  { id: "heels", ko: "구두", en: "high-heeled pumps" },
   { id: "flats", ko: "플랫", en: "flat shoes" },
   { id: "sneakers", ko: "운동화", en: "sneakers" },
   { id: "boots", ko: "부츠", en: "ankle boots" },
@@ -250,6 +304,13 @@ export interface Design {
   details: DetailId[];
   shoe: ShoeId;
   shoeColorId: string;
+  socksEnabled: boolean;
+  socksColorId: string;
+  socksLength: SockLengthId;
+  carry: CarryId[];
+  carryColorId: string;
+  carryStyle: CarryStyleId;
+  background: BackgroundId;
 }
 
 export const DEFAULT_DESIGN: Design = {
@@ -266,7 +327,84 @@ export const DEFAULT_DESIGN: Design = {
   details: [],
   shoe: "none",
   shoeColorId: "black",
+  socksEnabled: false,
+  socksColorId: "white",
+  socksLength: "mid",
+  carry: [],
+  carryColorId: "black",
+  carryStyle: "simple",
+  background: "room",
 };
+
+export function applyStylePreset(design: Design, preset: StylePresetId): Design {
+  const presetMap: Record<StylePresetId, Partial<Design>> = {
+    romantic: {
+      colorId: "pink",
+      pattern: "floral",
+      patternColorId: "burgundy",
+      material: "chiffon",
+      details: ["frill", "ribbon"],
+      socksEnabled: true,
+      socksColorId: "ivory",
+      socksLength: "knee",
+      carry: ["bouquet"],
+      carryColorId: "pink",
+      carryStyle: "bow",
+      background: "flower",
+      shoe: "heels",
+      shoeColorId: "black",
+    },
+    minimal: {
+      colorId: "black",
+      pattern: "solid",
+      patternColorId: "white",
+      material: "cotton",
+      details: [],
+      socksEnabled: false,
+      socksLength: "mid",
+      carry: [],
+      carryColorId: "black",
+      carryStyle: "minimal",
+      background: "room",
+      shoe: "loafers",
+      shoeColorId: "black",
+    },
+    vintage: {
+      colorId: "mustard",
+      pattern: "check",
+      patternColorId: "burgundy",
+      material: "corduroy",
+      details: ["embroidery", "pocket"],
+      socksEnabled: true,
+      socksColorId: "beige",
+      socksLength: "knee",
+      carry: ["backpack"],
+      carryColorId: "navy",
+      carryStyle: "minimal",
+      background: "france",
+      shoe: "boots",
+      shoeColorId: "beige",
+    },
+    casual: {
+      colorId: "skyblue",
+      pattern: "stripe",
+      patternColorId: "navy",
+      material: "denim",
+      details: ["pocket"],
+      socksEnabled: true,
+      socksColorId: "white",
+      socksLength: "ankle",
+      carry: ["handbag"],
+      carryColorId: "beige",
+      carryStyle: "simple",
+      background: "sea",
+      shoe: "sneakers",
+      shoeColorId: "white",
+    },
+  };
+
+  return { ...design, ...presetMap[preset] };
+}
 
 export function isDressLike(garment: GarmentId): boolean {
   return garment === "onepiece" || garment === "dress";
@@ -278,6 +416,10 @@ export function lengthOptionsFor(garment: GarmentId): Option<LengthId>[] {
 
 function find<T extends string>(options: Option<T>[], id: T): Option<T> {
   return options.find((o) => o.id === id) ?? options[0];
+}
+
+export function labelOf<T extends string>(options: Option<T>[], id: T): string {
+  return find(options, id).ko;
 }
 
 export function colorOf(design: Design): ColorOption {
@@ -292,7 +434,6 @@ export function shoeColorOf(design: Design): ColorOption {
   return COLORS.find((c) => c.id === design.shoeColorId) ?? COLORS[2];
 }
 
-/** 옷에 어울리는 신발만 추천 (없음은 항상 포함) */
 export function shoeOptionsFor(garment: GarmentId): Option<ShoeId>[] {
   const map: Record<GarmentId, ShoeId[]> = {
     tshirt: ["sneakers", "flats", "loafers", "sandals", "slippers"],
@@ -324,6 +465,11 @@ export function buildPrompt(design: Design): string {
   const collar = find(COLLARS, design.collar);
   const color = colorOf(design);
   const patternColor = patternColorOf(design);
+  const socksColor = COLORS.find((c) => c.id === design.socksColorId) ?? COLORS[0];
+  const socksLength = find(SOCK_LENGTHS, design.socksLength);
+  const carryStyle = find(CARRY_STYLES, design.carryStyle);
+  const carryColor = COLORS.find((c) => c.id === design.carryColorId) ?? COLORS[2];
+  const background = find(BACKGROUNDS, design.background);
 
   const patternText =
     design.pattern === "solid"
@@ -353,27 +499,42 @@ export function buildPrompt(design: Design): string {
 
   const fitArticle = article(fit.en) === "an" ? "An" : "A";
 
-  // 신발 선택 시 전신 코디 문장 추가
+  const socksText = design.socksEnabled
+    ? `${socksColor.en} ${socksLength.en} socks`
+    : null;
+  const carryTexts = design.carry
+    .filter((id) => id !== "none")
+    .map((id) => {
+      const carry = find(CARRIES, id);
+      if (id === "bouquet") return `${carryColor.en} ${carryStyle.en} bouquet`;
+      if (id === "headphones") return `${carryColor.en} ${carryStyle.en} headphones`;
+      return `${carryColor.en} ${carryStyle.en} ${carry.en}`;
+    });
+  const accessoryText = [
+    socksText,
+    carryTexts.length > 0 ? `carrying ${carryTexts.join(", ")}` : null,
+  ]
+    .filter((x): x is string => Boolean(x))
+    .join(" and ");
+  const accessorySentence = accessoryText ? `, with ${accessoryText}` : "";
+  const backgroundText = `${background.en} background`;
+
   const shoe = find(SHOES, design.shoe);
   const shoeColor = shoeColorOf(design);
   const styledWith =
     design.shoe !== "none"
       ? ` Styled with ${shoeColor.en} ${shoe.en}, full-body styling.`
       : "";
-  // 신발이 보이려면 전신 마네킹이 필요
   const displayText =
     design.shoe !== "none"
-      ? "Studio fashion photography, full-body front view, plain white background, " +
-        "headless mannequin display (no face), photorealistic, high detail."
-      : "Studio product photography, front view, plain white background, " +
-        "mannequin display (no face), photorealistic, high detail.";
+      ? `Studio fashion photography, full-body front view, ${backgroundText}, headless mannequin display (no face), photorealistic, high detail.`
+      : `Studio product photography, front view, ${backgroundText}, mannequin display (no face), photorealistic, high detail.`;
 
-  // 레깅스(하의)는 넥라인·칼라·소매 표현이 어울리지 않으므로 별도 문장 구성
   if (design.garment === "leggings") {
     const capFit = fit.en.charAt(0).toUpperCase() + fit.en.slice(1);
     return (
       `${capFit} women's leggings in ${color.en}, made of ${material.en}, ` +
-      `featuring ${patternText} with ${detailText}, high-waisted, ${length.en}-length.` +
+      `featuring ${patternText} with ${detailText}, high-waisted, ${length.en}-length${accessorySentence}.` +
       `${styledWith} ${displayText}`
     );
   }
@@ -381,7 +542,7 @@ export function buildPrompt(design: Design): string {
   return (
     `${fitArticle} ${fit.en} women's ${garment.en} in ${color.en}, made of ${material.en}, ` +
     `featuring ${patternText} with ${detailText}, ${neckText}, ` +
-    `${sleeveText}, ${length.en}-length.` +
+    `${sleeveText}, ${length.en}-length${accessorySentence}.` +
     `${styledWith} ${displayText}`
   );
 }

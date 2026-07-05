@@ -16,9 +16,9 @@ const notoSerif = Noto_Serif_KR({
 });
 
 export const metadata: Metadata = {
-  title: "뿡뽕의상실 — AI 여성복 디자인 스튜디오",
+  title: "뿡뽕의상실 - AI 의상 디자인 스튜디오",
   description:
-    "옷 종류와 핏, 소매, 넥라인, 색상, 소재, 신발을 고르면 AI가 나만의 여성복 디자인을 화보로 완성해 드립니다.",
+    "옷 종류, 핏, 색상, 소재, 소품을 고르면 AI가 의상 디자인 이미지를 생성합니다.",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,

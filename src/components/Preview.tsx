@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { Design, colorOf, patternColorOf, shoeColorOf } from "@/lib/design";
+import { COLORS, Design, colorOf, patternColorOf, shoeColorOf } from "@/lib/design";
 import {
   buildShapes,
   darken,
@@ -89,6 +89,8 @@ export default function Preview({ design }: { design: Design }) {
           </g>
         </pattern>
       </defs>
+
+      <BackgroundOverlay design={design} />
 
       {/* mannequin stand */}
       <g stroke="rgba(35,33,31,0.18)" strokeWidth="2" fill="none">
@@ -557,9 +559,411 @@ export default function Preview({ design }: { design: Design }) {
         )}
       </AnimatePresence>
 
+      {/* accessories */}
+      <AccessoryOverlay design={design} />
+
       {/* shoes — base of the figure */}
       <ShoeOverlay design={design} baseY={VIEW_H - 22} />
     </svg>
+  );
+}
+
+function BackgroundOverlay({ design }: { design: Design }) {
+  return (
+    <motion.g
+      key={`bg-${design.background}`}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.32, ease: "easeOut" }}
+    >
+      {design.background === "flower" && (
+        <>
+          <rect width={VIEW_W} height={VIEW_H} fill="#F8F4EA" />
+          <path d={`M 0,315 C 55,286 91,334 142,304 C 194,274 241,305 320,280 L 320,470 L 0,470 Z`} fill="#C9DBB0" />
+          <path d={`M 0,338 C 72,315 126,348 182,326 C 233,306 274,325 320,304 L 320,470 L 0,470 Z`} fill="#8EA86B" opacity="0.75" />
+          {[
+            [36, 356, "#F0C3CD"], [72, 331, "#D4A937"], [108, 366, "#FFFFFF"],
+            [232, 342, "#F0C3CD"], [276, 365, "#FFFFFF"], [298, 322, "#D4A937"],
+          ].map((point) => {
+            const [x, y, fill] = point as [number, number, string];
+            return (
+            <g key={`${x}-${y}`} transform={`translate(${x} ${y})`}>
+              <circle cx="0" cy="0" r="3.5" fill={fill} />
+              <circle cx="-4" cy="0" r="2.6" fill={fill} opacity="0.8" />
+              <circle cx="4" cy="0" r="2.6" fill={fill} opacity="0.8" />
+              <line x1="0" y1="4" x2="0" y2="16" stroke="#557246" strokeWidth="1.2" />
+            </g>
+            );
+          })}
+        </>
+      )}
+      {design.background === "france" && (
+        <>
+          <rect width={VIEW_W} height={VIEW_H} fill="#EEF2F0" />
+          <rect x="0" y="314" width={VIEW_W} height="156" fill="#D8CEC0" />
+          <path d="M 34,278 L 66,74 L 98,278 M 48,188 L 84,188 M 40,236 L 92,236 M 58,126 L 74,126" fill="none" stroke="#7A7169" strokeWidth="3" strokeLinecap="round" />
+          <path d="M 216,118 L 300,118 L 300,316 L 216,316 Z" fill="#E4D7C4" stroke="rgba(35,33,31,0.14)" />
+          {[138, 176, 214, 252].map((y) => (
+            <path key={y} d={`M 229,${y} L 287,${y}`} stroke="rgba(35,33,31,0.16)" strokeWidth="2" />
+          ))}
+          <path d="M 0,340 C 72,326 134,340 198,324 C 246,312 286,322 320,316" fill="none" stroke="rgba(35,33,31,0.15)" strokeWidth="3" />
+        </>
+      )}
+      {design.background === "sea" && (
+        <>
+          <rect width={VIEW_W} height={VIEW_H} fill="#DDEEF3" />
+          <rect x="0" y="258" width={VIEW_W} height="96" fill="#88C8D5" />
+          <rect x="0" y="354" width={VIEW_W} height="116" fill="#E9D2A7" />
+          {[276, 306, 336].map((y) => (
+            <path key={y} d={`M 0,${y} C 46,${y - 18} 84,${y + 14} 132,${y} S 222,${y - 18} 320,${y}`} fill="none" stroke="rgba(255,255,255,0.78)" strokeWidth="3" />
+          ))}
+          <circle cx="262" cy="78" r="25" fill="#F5C85C" opacity="0.9" />
+        </>
+      )}
+      {design.background === "space" && (
+        <>
+          <rect width={VIEW_W} height={VIEW_H} fill="#15172D" />
+          {[28, 68, 112, 238, 282, 302].map((x, i) => (
+            <circle key={x} cx={x} cy={38 + (i % 3) * 52} r={i % 2 ? 1.8 : 2.6} fill="#F7F1D5" />
+          ))}
+          <circle cx="72" cy="112" r="28" fill="#6F78B8" opacity="0.9" />
+          <circle cx="66" cy="104" r="9" fill="#97A0D2" opacity="0.62" />
+          <path d="M 218,82 C 244,68 278,72 298,92 C 268,88 242,94 218,112 C 225,102 225,92 218,82 Z" fill="#DDAA5B" opacity="0.86" />
+          <rect x="0" y="358" width={VIEW_W} height="112" fill="#242545" />
+        </>
+      )}
+      {design.background === "room" && (
+        <>
+          <rect width={VIEW_W} height={VIEW_H} fill="#F6EFE4" />
+          <rect x="0" y="322" width={VIEW_W} height="148" fill="#D8BFA2" />
+          <path d="M 0,322 L 320,322" stroke="rgba(35,33,31,0.14)" strokeWidth="2" />
+          <rect x="28" y="92" width="64" height="84" rx="3" fill="#E7D7C7" stroke="rgba(35,33,31,0.12)" />
+          <path d="M 40,122 L 80,122 M 40,146 L 80,146" stroke="rgba(35,33,31,0.13)" strokeWidth="2" />
+          <path d="M 242,242 L 292,242 L 302,322 L 232,322 Z" fill="#C6A684" opacity="0.75" />
+        </>
+      )}
+      {design.background === "zoo" && (
+        <>
+          <rect width={VIEW_W} height={VIEW_H} fill="#F4EEDA" />
+          <rect x="0" y="326" width={VIEW_W} height="144" fill="#AFCB7E" />
+          <path d="M 28,154 C 42,104 100,84 160,84 C 220,84 278,104 292,154" fill="none" stroke="#9A7A50" strokeWidth="8" strokeLinecap="round" />
+          <rect x="66" y="134" width="188" height="42" rx="5" fill="#C99C5B" stroke="#8C6A42" strokeWidth="2" />
+          <text x="160" y="163" textAnchor="middle" fontSize="25" fontFamily="Georgia, serif" fontWeight="700" fill="#FFF2D0">ZOO</text>
+          <path d="M 76,176 L 76,322 M 244,176 L 244,322" stroke="#8C6A42" strokeWidth="6" strokeLinecap="round" />
+          {[24, 50, 270, 296].map((x) => (
+            <g key={x} opacity="0.8">
+              <line x1={x} y1="216" x2={x} y2="330" stroke="#9A7A50" strokeWidth="3" />
+              <path d={`M ${x - 12},248 L ${x + 12},248 M ${x - 12},286 L ${x + 12},286`} stroke="#9A7A50" strokeWidth="2" />
+            </g>
+          ))}
+          <path d="M 0,332 C 56,314 112,338 168,320 C 226,302 270,318 320,304 L 320,470 L 0,470 Z" fill="#8FAE5E" opacity="0.62" />
+          <g transform="translate(44 265)">
+            <ellipse cx="27" cy="45" rx="28" ry="18" fill="#9FB4BE" />
+            <circle cx="5" cy="35" r="13" fill="#9FB4BE" />
+            <path d="M -2,44 C -18,50 -16,69 -1,63" fill="none" stroke="#9FB4BE" strokeWidth="8" strokeLinecap="round" />
+            <circle cx="0" cy="32" r="2" fill="#3D3028" />
+          </g>
+          <g transform="translate(252 238)">
+            <path d="M 4,10 L 18,10 L 22,72 L 8,72 Z" fill="#D6A95E" />
+            <circle cx="11" cy="0" r="11" fill="#D6A95E" />
+            <path d="M 10,-11 L 6,-24 M 15,-10 L 20,-23" stroke="#B9853B" strokeWidth="3" strokeLinecap="round" />
+            <ellipse cx="0" cy="76" rx="20" ry="12" fill="#D6A95E" />
+            <circle cx="7" cy="-2" r="1.7" fill="#3D3028" />
+            {[0, 1, 2, 3].map((i) => (
+              <circle key={i} cx={5 + i * 4} cy={24 + i * 8} r="2.2" fill="#B9853B" opacity="0.75" />
+            ))}
+          </g>
+        </>
+      )}
+    </motion.g>
+  );
+}
+
+function AccessoryOverlay({ design }: { design: Design }) {
+  const sockColor = COLORS.find((c) => c.id === design.socksColorId) ?? COLORS[0];
+  const carryColor = COLORS.find((c) => c.id === design.carryColorId) ?? COLORS[2];
+  const sockStroke = isLight(sockColor.hex) ? "rgba(35,33,31,0.36)" : darken(sockColor.hex, 0.42);
+  const sockShade = isLight(sockColor.hex) ? "rgba(35,33,31,0.08)" : "rgba(255,255,255,0.2)";
+  const sockHighlight = isLight(sockColor.hex) ? "rgba(35,33,31,0.28)" : "rgba(255,255,255,0.38)";
+  const carryStroke = isLight(carryColor.hex) ? "rgba(35,33,31,0.36)" : darken(carryColor.hex, 0.42);
+  const carryShade = isLight(carryColor.hex) ? "rgba(35,33,31,0.1)" : "rgba(255,255,255,0.22)";
+  const carryHighlight = isLight(carryColor.hex) ? "rgba(255,255,255,0.72)" : "rgba(255,255,255,0.32)";
+  const baseY = VIEW_H - 24;
+
+  const sockHeight = design.socksLength === "ankle" ? 30 : design.socksLength === "knee" ? 86 : design.socksLength === "over" ? 112 : 58;
+  const topY = baseY - sockHeight;
+  const bottomY = baseY - 12;
+
+  return (
+    <g>
+      {design.socksEnabled && (
+        <motion.g
+          key={`socks-${design.socksLength}-${sockColor.id}`}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ type: "spring", stiffness: 190, damping: 23 }}
+        >
+          {([-1, 1] as const).map((side) => {
+            const x = CX + side * 28;
+            const calf = design.socksLength === "ankle" ? 7 : design.socksLength === "mid" ? 9 : 10.5;
+            const ankle = 7.5;
+            const toeDir = side;
+            const sockPath = [
+              `M ${x - calf},${topY + 8}`,
+              `C ${x - calf - 2},${topY + 30} ${x - ankle - 1},${bottomY - 42} ${x - ankle},${bottomY - 12}`,
+              `C ${x - ankle},${bottomY - 4} ${x - 3},${bottomY} ${x + toeDir * 5},${bottomY}`,
+              `C ${x + toeDir * 14},${bottomY} ${x + toeDir * 20},${bottomY + 4} ${x + toeDir * 18},${bottomY + 8}`,
+              `C ${x + toeDir * 9},${bottomY + 10} ${x - toeDir * 2},${bottomY + 9} ${x + ankle * toeDir},${bottomY + 4}`,
+              `C ${x + ankle},${bottomY - 22} ${x + calf + 1},${topY + 30} ${x + calf},${topY + 8}`,
+              `Z`,
+            ].join(" ");
+            return (
+              <g key={side}>
+                <path d={sockPath} fill={sockColor.hex} stroke={sockStroke} strokeWidth="1.35" strokeLinejoin="round" />
+                <path
+                  d={`M ${x - calf + 3},${topY + 13} C ${x - 2},${topY + 38} ${x - 2},${bottomY - 28} ${x - 2},${bottomY - 7}`}
+                  fill="none"
+                  stroke={sockShade}
+                  strokeWidth="4"
+                  strokeLinecap="round"
+                />
+                <path
+                  d={`M ${x + toeDir * 7},${bottomY + 5} C ${x + toeDir * 15},${bottomY + 7} ${x + toeDir * 19},${bottomY + 7} ${x + toeDir * 22},${bottomY + 9}`}
+                  fill="none"
+                  stroke={sockStroke}
+                  strokeOpacity="0.3"
+                  strokeWidth="1"
+                  strokeLinecap="round"
+                />
+                <rect x={x - calf - 2} y={topY + 2} width={(calf + 2) * 2} height="10" rx="5" fill={darken(sockColor.hex, 0.12)} stroke={sockStroke} strokeOpacity="0.45" />
+                {[0, 1, 2].map((i) => (
+                  <line
+                    key={i}
+                    x1={x - 6 + i * 6}
+                    y1={topY + 5}
+                    x2={x - 6 + i * 6}
+                    y2={topY + 11}
+                    stroke={sockHighlight}
+                    strokeWidth="1"
+                    strokeLinecap="round"
+                  />
+                ))}
+              </g>
+            );
+          })}
+        </motion.g>
+      )}
+
+      {design.carry.includes("bouquet") && (
+        <motion.g
+          key={`bouquet-${design.carryStyle}-${carryColor.id}`}
+          transform={`translate(${CX + 62}, 138) rotate(-9)`}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ type: "spring", stiffness: 180, damping: 22 }}
+        >
+          <path d="M -7,2 C -10,24 -8,38 -4,54 M 7,2 C 10,24 8,38 4,54 M 0,0 C 0,22 0,38 0,55" stroke="rgba(75,92,55,0.58)" strokeWidth="1.7" strokeLinecap="round" fill="none" />
+          {[-15, -6, 4, 14].map((x, i) => (
+            <path
+              key={x}
+              d={`M ${x},${-5 - i * 3} C ${x - 12},${-19 - i * 2} ${x - 5},${-34 - i * 2} ${x + 4},${-26 - i * 2} C ${x + 13},${-34 - i * 2} ${x + 21},${-18 - i * 2} ${x},${-5 - i * 3} Z`}
+              fill={i % 2 ? darken(carryColor.hex, 0.1) : carryColor.hex}
+              stroke={carryStroke}
+              strokeWidth="1"
+            />
+          ))}
+          <path d="M -13,12 C -7,18 7,18 13,12 L 7,31 C 3,35 -3,35 -7,31 Z" fill="rgba(245,239,226,0.72)" stroke="rgba(35,33,31,0.22)" strokeWidth="1" />
+          {design.carryStyle === "bow" && (
+            <g fill={darken(carryColor.hex, 0.2)} stroke={carryStroke} strokeWidth="0.8">
+              <path d="M -1,24 C -14,16 -18,28 -3,29 Z" />
+              <path d="M 1,24 C 14,16 18,28 3,29 Z" />
+              <circle cx="0" cy="26" r="3" />
+            </g>
+          )}
+          {design.carryStyle === "floral" && (
+            <g fill="rgba(255,255,255,0.86)">
+              <circle cx="-8" cy="-25" r="2.2" />
+              <circle cx="9" cy="-31" r="2.2" />
+              <circle cx="15" cy="-17" r="2" />
+            </g>
+          )}
+        </motion.g>
+      )}
+
+      {design.carry.includes("backpack") && (
+        <motion.g
+          key={`backpack-${design.carryStyle}-${carryColor.id}`}
+          transform={`translate(${CX - 76}, 168) scale(0.82)`}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ type: "spring", stiffness: 180, damping: 23 }}
+        >
+          <path d="M 18,-6 C 8,-6 1,2 0,15 L -4,61 C -5,72 4,81 18,81 C 32,81 41,72 40,61 L 36,15 C 35,2 28,-6 18,-6 Z" fill={carryColor.hex} stroke={carryStroke} strokeWidth="1.5" />
+          <path d="M 7,13 C 11,5 25,5 29,13" fill="none" stroke={carryStroke} strokeWidth="2.3" strokeLinecap="round" />
+          <path d="M 0,18 C -15,28 -13,54 -2,66 M 36,18 C 51,28 49,54 38,66" fill="none" stroke={carryStroke} strokeOpacity="0.55" strokeWidth="2.2" strokeLinecap="round" />
+          <path d="M 4,31 L 32,31 L 29,56 C 27,63 9,63 7,56 Z" fill={carryShade} stroke={carryStroke} strokeOpacity="0.65" strokeWidth="1" />
+          <path d="M 10,39 L 26,39" stroke={carryHighlight} strokeWidth="1.4" strokeLinecap="round" />
+          {design.carryStyle !== "minimal" && (
+            <path d="M 7,3 C 12,-3 24,-3 29,3" fill="none" stroke={carryHighlight} strokeWidth="1.4" strokeLinecap="round" />
+          )}
+          {design.carryStyle === "bow" && (
+            <g transform="translate(18 24)" fill={carryHighlight} stroke={carryStroke} strokeWidth="0.8">
+              <path d="M 0,0 C -11,-8 -15,5 -2,5 Z" />
+              <path d="M 0,0 C 11,-8 15,5 2,5 Z" />
+              <circle cx="0" cy="2" r="2.5" />
+            </g>
+          )}
+          {design.carryStyle === "floral" && (
+            <g fill={carryHighlight}>
+              <circle cx="13" cy="23" r="2" />
+              <circle cx="18" cy="20" r="2" />
+              <circle cx="23" cy="23" r="2" />
+            </g>
+          )}
+        </motion.g>
+      )}
+
+      {design.carry.includes("handbag") && (
+        <motion.g
+          key={`handbag-${design.carryStyle}-${carryColor.id}`}
+          transform={`translate(${CX + 58}, 210) rotate(5) scale(0.82)`}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ type: "spring", stiffness: 180, damping: 23 }}
+        >
+          <path d="M -17,-10 C -17,-32 17,-32 17,-10" fill="none" stroke={carryStroke} strokeWidth="4.2" strokeLinecap="round" />
+          <path d="M -26,-8 C -23,-20 23,-20 26,-8 L 31,45 C 24,55 -24,55 -31,45 Z" fill={carryColor.hex} stroke={carryStroke} strokeWidth="1.6" strokeLinejoin="round" />
+          <path d="M -22,2 C -12,9 12,9 22,2" fill="none" stroke={carryHighlight} strokeWidth="1.5" strokeLinecap="round" />
+          <path d="M -16,17 L 16,17 L 13,36 C 8,41 -8,41 -13,36 Z" fill={carryShade} stroke={carryStroke} strokeOpacity="0.55" strokeWidth="1" />
+          <circle cx="0" cy="27" r="2.8" fill={carryHighlight} stroke={carryStroke} strokeWidth="0.8" />
+          {design.carryStyle === "bow" && (
+            <g transform="translate(0 7)" fill={carryHighlight} stroke={carryStroke} strokeWidth="0.8">
+              <path d="M 0,0 C -13,-9 -16,8 -2,7 Z" />
+              <path d="M 0,0 C 13,-9 16,8 2,7 Z" />
+              <circle cx="0" cy="4" r="2.8" />
+            </g>
+          )}
+          {design.carryStyle === "floral" && (
+            <g fill={carryHighlight}>
+              <circle cx="-10" cy="11" r="2.2" />
+              <circle cx="-5" cy="8" r="2.2" />
+              <circle cx="0" cy="11" r="2.2" />
+            </g>
+          )}
+        </motion.g>
+      )}
+
+      {design.carry.includes("doll") && (
+        <motion.g
+          key={`doll-${design.carryStyle}-${carryColor.id}`}
+          transform={`translate(${CX + 66}, 218) rotate(7)`}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ type: "spring", stiffness: 180, damping: 23 }}
+        >
+          <ellipse cx="0" cy="26" rx="20" ry="25" fill={carryColor.hex} stroke={carryStroke} strokeWidth="1.5" />
+          <circle cx="0" cy="-2" r="18" fill={darken(carryColor.hex, 0.04)} stroke={carryStroke} strokeWidth="1.4" />
+          <circle cx="-11" cy="-18" r="7" fill={carryColor.hex} stroke={carryStroke} strokeWidth="1" />
+          <circle cx="11" cy="-18" r="7" fill={carryColor.hex} stroke={carryStroke} strokeWidth="1" />
+          <circle cx="-6" cy="-4" r="2" fill="#2E2924" />
+          <circle cx="6" cy="-4" r="2" fill="#2E2924" />
+          <path d="M -5,4 Q 0,8 5,4" fill="none" stroke="#2E2924" strokeWidth="1.2" strokeLinecap="round" />
+          <path d="M -18,24 C -36,24 -31,48 -16,42 M 18,24 C 36,24 31,48 16,42" fill="none" stroke={carryStroke} strokeWidth="5" strokeLinecap="round" />
+          {design.carryStyle === "bow" && (
+            <g transform="translate(0 -26)" fill={carryHighlight} stroke={carryStroke} strokeWidth="0.8">
+              <path d="M 0,0 C -10,-8 -13,5 -2,5 Z" />
+              <path d="M 0,0 C 10,-8 13,5 2,5 Z" />
+              <circle cx="0" cy="2" r="2.4" />
+            </g>
+          )}
+          {design.carryStyle === "floral" && (
+            <circle cx="0" cy="23" r="4" fill={carryHighlight} />
+          )}
+        </motion.g>
+      )}
+
+      {design.carry.includes("wand") && (
+        <motion.g
+          key={`wand-${design.carryStyle}-${carryColor.id}`}
+          transform={`translate(${CX + 67}, 154) rotate(-18)`}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ type: "spring", stiffness: 180, damping: 21 }}
+        >
+          <line x1="0" y1="28" x2="0" y2="104" stroke={carryStroke} strokeWidth="5" strokeLinecap="round" />
+          <line x1="0" y1="28" x2="0" y2="104" stroke={carryColor.hex} strokeWidth="2.8" strokeLinecap="round" />
+          <path d={starPath(0, 12, 18, 7)} fill={carryColor.hex} stroke={carryStroke} strokeWidth="1.4" strokeLinejoin="round" />
+          <path d="M -30,-10 L -22,-18 M 28,-10 L 36,-18 M 27,37 L 39,41" stroke={carryHighlight} strokeWidth="2" strokeLinecap="round" />
+          {design.carryStyle === "bow" && (
+            <g transform="translate(0 58)" fill={carryHighlight} stroke={carryStroke} strokeWidth="0.8">
+              <path d="M 0,0 C -11,-7 -13,6 -2,6 Z" />
+              <path d="M 0,0 C 11,-7 13,6 2,6 Z" />
+            </g>
+          )}
+        </motion.g>
+      )}
+
+      {design.carry.includes("balloon") && (
+        <motion.g
+          key={`balloon-${design.carryStyle}-${carryColor.id}`}
+          transform={`translate(${CX + 77}, 94)`}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ type: "spring", stiffness: 170, damping: 22 }}
+        >
+          <path d="M -4,77 C -20,118 -8,144 -24,178" fill="none" stroke="rgba(35,33,31,0.32)" strokeWidth="1.4" strokeDasharray="4 4" />
+          <path d="M 0,0 C 35,0 40,47 7,66 L 0,77 L -7,66 C -40,47 -35,0 0,0 Z" fill={carryColor.hex} stroke={carryStroke} strokeWidth="1.5" />
+          <path d="M -14,12 C -24,29 -19,48 -5,57" fill="none" stroke={carryHighlight} strokeWidth="3" strokeLinecap="round" />
+          {design.carryStyle === "floral" && (
+            <g fill={carryHighlight}>
+              <circle cx="-3" cy="28" r="3" />
+              <circle cx="4" cy="25" r="3" />
+              <circle cx="8" cy="32" r="3" />
+            </g>
+          )}
+        </motion.g>
+      )}
+
+      {design.carry.includes("phone") && (
+        <motion.g
+          key={`phone-${design.carryStyle}-${carryColor.id}`}
+          transform={`translate(${CX + 68}, 202) rotate(-8)`}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ type: "spring", stiffness: 180, damping: 23 }}
+        >
+          <rect x="-16" y="-28" width="32" height="58" rx="7" fill={carryStroke} />
+          <rect x="-12" y="-22" width="24" height="44" rx="3" fill={carryColor.hex} />
+          <circle cx="0" cy="25" r="2" fill={carryHighlight} />
+          <path d="M -7,-12 L 7,-12 M -7,-4 L 7,-4 M -7,4 L 2,4" stroke={carryHighlight} strokeWidth="1.4" strokeLinecap="round" />
+          {design.carryStyle === "floral" && (
+            <circle cx="8" cy="-16" r="2.2" fill={carryHighlight} />
+          )}
+        </motion.g>
+      )}
+
+      {design.carry.includes("headphones") && (
+        <motion.g
+          key={`headphones-${design.carryStyle}-${carryColor.id}`}
+          transform={`translate(${CX}, 50)`}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ type: "spring", stiffness: 180, damping: 23 }}
+        >
+          <path d="M -35,34 C -33,0 33,0 35,34" fill="none" stroke={carryStroke} strokeWidth="5" strokeLinecap="round" />
+          <path d="M -35,34 C -33,0 33,0 35,34" fill="none" stroke={carryColor.hex} strokeWidth="2.4" strokeLinecap="round" />
+          <rect x="-50" y="28" width="20" height="34" rx="8" fill={carryColor.hex} stroke={carryStroke} strokeWidth="1.4" />
+          <rect x="30" y="28" width="20" height="34" rx="8" fill={carryColor.hex} stroke={carryStroke} strokeWidth="1.4" />
+          <path d="M -44,37 L -44,53 M 44,37 L 44,53" stroke={carryHighlight} strokeWidth="1.5" strokeLinecap="round" />
+          {design.carryStyle === "bow" && (
+            <g transform="translate(0 4)" fill={carryHighlight} stroke={carryStroke} strokeWidth="0.8">
+              <path d="M 0,0 C -12,-8 -15,7 -2,7 Z" />
+              <path d="M 0,0 C 12,-8 15,7 2,7 Z" />
+            </g>
+          )}
+        </motion.g>
+      )}
+    </g>
   );
 }
 
