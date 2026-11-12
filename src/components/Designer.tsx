@@ -424,6 +424,21 @@ function StepShape({
           <Field label="핏">
             <SegmentGroup name="핏" options={FITS} value={design.fit} onChange={(v) => update("fit", v)} />
           </Field>
+          {isDressLike(design.garment) ? (
+            <Field label="드레스 치마 형태">
+              <SegmentGroup name="드레스 치마 형태" options={[{id:"basic",ko:"기본",en:"basic"},{id:"princess",ko:"중세 공주 드레스",en:"princess"}]} value={design.dressSkirt} onChange={v => update("dressSkirt", v)} />
+            </Field>
+          ) : design.garment !== "leggings" && (
+            <>
+              <Field label="함께 입을 하의">
+                <SegmentGroup name="하의" options={[{id:"none",ko:"없음",en:"none"},{id:"pants",ko:"바지",en:"pants"},{id:"skirt",ko:"스커트",en:"skirt"},{id:"princess",ko:"공주 드레스 치마",en:"princess"}]} value={design.bottom} onChange={v => update("bottom", v)} />
+              </Field>
+              {design.bottom !== "none" && <>
+                <Field label="하의 기장"><SegmentGroup name="하의 기장" options={[{id:"mini",ko:"짧게",en:"mini"},{id:"midi",ko:"미디",en:"midi"},{id:"maxi",ko:"롱",en:"maxi"}]} value={design.bottomLength} onChange={v => update("bottomLength",v)} /></Field>
+                <Field label="하의 색상"><ColorChips colors={COLORS} value={design.bottomColorId} onChange={v => update("bottomColorId",v)} /></Field>
+              </>}
+            </>
+          )}
           <Field label={isDressLike(design.garment) ? "기장" : "길이"}>
             <SegmentGroup name="길이" options={lengthOptionsFor(design.garment)} value={design.length} onChange={(v) => update("length", v)} />
           </Field>
@@ -431,6 +446,11 @@ function StepShape({
             <>
               <Field label="소매">
                 <SegmentGroup name="소매" options={SLEEVES} value={design.sleeve} onChange={(v) => update("sleeve", v)} />
+              </Field>
+              <Field label="소매 셔링">
+                <button type="button" disabled={design.sleeve === "sleeveless"} onClick={() => update("sleeveShirring", !design.sleeveShirring)} className={design.sleeveShirring ? "primary-button" : "soft-button"}>
+                  {design.sleeveShirring ? "셔링 적용" : "셔링 없음"}
+                </button>
               </Field>
               <Field label="넥라인">
                 <SegmentGroup name="넥라인" options={NECKLINES} value={design.neckline} onChange={(v) => update("neckline", v)} />
@@ -688,7 +708,7 @@ function PreviewPanel({
     <div className="overflow-hidden rounded-3xl border border-ink/8 bg-white/82 shadow-[0_24px_70px_-30px_rgba(35,33,31,0.25)] backdrop-blur">
       <div className="flex items-center justify-between border-b border-ink/8 px-5 py-4">
         <div>
-          <p className="text-[11px] font-semibold tracking-[0.2em] text-ink/40 uppercase">Live Styling Board</p>
+          <p className="text-[11px] font-semibold tracking-[0.2em] text-ink/40 uppercase">ATELIER / DESIGN PREVIEW</p>
           <h2 className="mt-1 font-serif text-xl text-ink">{labelOf(GARMENTS, design.garment)}</h2>
         </div>
         <span className="rounded-full bg-ink px-3 py-1 text-xs font-semibold text-paper">
@@ -713,7 +733,8 @@ function PreviewPanel({
       )}
 
       <div className="bg-[linear-gradient(180deg,#fbf8ef_0%,#f4eee2_100%)] px-5 pt-4">
-        <div className="mx-auto max-w-[280px]">
+          <p className="mx-auto mb-3 max-w-[360px] text-center text-xs text-ink/45">실시간 디자인 스튜디오 · 2D 의상 렌더링</p>
+          <div className="mx-auto max-w-[360px]">
           <Preview design={design} />
         </div>
       </div>

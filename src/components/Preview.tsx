@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { COLORS, Design, colorOf, patternColorOf, shoeColorOf } from "@/lib/design";
+import { COLORS, Design, colorOf, patternColorOf, shoeColorOf, isDressLike } from "@/lib/design";
 import {
   buildShapes,
   darken,
@@ -31,6 +31,33 @@ export default function Preview({ design }: { design: Design }) {
       aria-label="의상 실루엣 미리보기"
     >
       <defs>
+        <radialGradient id="studio-light"><stop stopColor="#fffdf9"/><stop offset="1" stopColor="#e5dfd4"/></radialGradient>
+        <linearGradient id="fold-light"><stop stopColor="#211923" stopOpacity="0"/><stop offset=".43" stopColor="#211923" stopOpacity=".19"/><stop offset=".58" stopColor="#fff" stopOpacity=".32"/><stop offset="1" stopColor="#fff" stopOpacity="0"/></linearGradient>
+        <pattern id="weave" width="3" height="3" patternUnits="userSpaceOnUse"><path d="M0 0H3M0 0V3" stroke="#302a25" strokeOpacity=".07" strokeWidth=".45"/></pattern>
+        <clipPath id="body-clip"><path d={s.bodyD}/></clipPath>
+
+        <linearGradient id="cloth-shade" x1="0" x2="1" y1="0" y2="0">
+          <stop offset="0" stopColor="#241d25" stopOpacity=".15" />
+          <stop offset=".2" stopColor="#fff" stopOpacity=".12" />
+          <stop offset=".52" stopColor="#fff" stopOpacity="0" />
+          <stop offset=".82" stopColor="#fff" stopOpacity=".1" />
+          <stop offset="1" stopColor="#241d25" stopOpacity=".18" />
+        </linearGradient>
+        <linearGradient id="leg-cloth-shade" x1="0" x2="1" y1="0" y2="0">
+          <stop stopColor="#201b22" stopOpacity=".16" /><stop offset=".28" stopColor="#fff" stopOpacity=".13" /><stop offset=".58" stopColor="#fff" stopOpacity="0" /><stop offset="1" stopColor="#201b22" stopOpacity=".2" />
+        </linearGradient>
+        <linearGradient id="fabric-depth" x1="0" x2="0.92" y1="0" y2="1">
+          <stop stopColor="#fff" stopOpacity=".3"/><stop offset=".38" stopColor="#fff" stopOpacity="0"/><stop offset="1" stopColor="#302735" stopOpacity=".13"/>
+        </linearGradient>
+        <filter id="fabric-shadow" x="-25%" y="-15%" width="150%" height="140%">
+          <feGaussianBlur in="SourceAlpha" stdDeviation="3" result="blur"/><feOffset dy="3"/><feComponentTransfer><feFuncA type="linear" slope=".16"/></feComponentTransfer><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+        <linearGradient id="skin" x1="0" x2="1" y1="0" y2="0">
+          <stop stopColor="#bd8067" /><stop offset=".48" stopColor="#f0c4a5" /><stop offset="1" stopColor="#bd8067" />
+        </linearGradient>
+        <linearGradient id="leg-skin" x1="0" x2="1" y1="0" y2="0">
+          <stop stopColor="#bd8067" /><stop offset=".5" stopColor="#edc1a2" /><stop offset="1" stopColor="#bd8067" />
+        </linearGradient>
         <pattern id="pat-stripe" width="14" height="14" patternUnits="userSpaceOnUse">
           <rect width="7" height="14" fill={ink} fillOpacity="0.55" />
         </pattern>
@@ -77,37 +104,41 @@ export default function Preview({ design }: { design: Design }) {
             <path d={starPath(18, 18, 4.2, 1.8)} />
           </g>
         </pattern>
-        <pattern id="pat-leopard" width="28" height="28" patternUnits="userSpaceOnUse">
+        <pattern id="pat-leopard" width="32" height="30" patternUnits="userSpaceOnUse">
+          <g fill="none" stroke={ink} strokeLinecap="round">
+            <path d="M3.5,8 C4.5,3.5 11,2.8 13.5,6 C15,8 13.8,11.8 10.5,13" strokeOpacity="0.78" strokeWidth="2.3" />
+            <path d="M8.2,13.5 C5.5,13.2 3.8,11.5 3.5,9.7" strokeOpacity="0.78" strokeWidth="2.3" />
+            <path d="M19,20 C20,16.2 25.8,15.5 28,18.5 C29.5,20.8 28,24.3 24.7,25" strokeOpacity="0.72" strokeWidth="2.1" />
+            <path d="M22.8,25 C20.5,24.7 19,23.3 18.8,21.5" strokeOpacity="0.72" strokeWidth="2.1" />
+          </g>
           <g fill={ink}>
-            <ellipse cx="7" cy="8" rx="3.2" ry="2.2" fillOpacity="0.4" />
-            <path d="M3,5 a6,5 0 0 1 8,0" fill="none" stroke={ink} strokeOpacity="0.6" strokeWidth="1.4" />
-            <path d="M4,11.5 a5,4 0 0 0 7,-0.5" fill="none" stroke={ink} strokeOpacity="0.6" strokeWidth="1.4" />
-            <ellipse cx="20" cy="20" rx="3" ry="2.4" fillOpacity="0.4" />
-            <path d="M16,17 a6,5 0 0 1 8,0.5" fill="none" stroke={ink} strokeOpacity="0.6" strokeWidth="1.4" />
-            <circle cx="21" cy="6" r="1.4" fillOpacity="0.5" />
-            <circle cx="6" cy="21" r="1.4" fillOpacity="0.5" />
+            <ellipse cx="8.8" cy="8.4" rx="2.4" ry="1.7" fillOpacity="0.28" transform="rotate(-18 8.8 8.4)" />
+            <ellipse cx="24" cy="20.8" rx="2.1" ry="1.5" fillOpacity="0.26" transform="rotate(24 24 20.8)" />
+            <ellipse cx="23.8" cy="5.8" rx="1.7" ry="1.2" fillOpacity="0.62" transform="rotate(-25 23.8 5.8)" />
+            <ellipse cx="7" cy="23.5" rx="1.5" ry="1.1" fillOpacity="0.58" transform="rotate(18 7 23.5)" />
+            <circle cx="16.5" cy="12.5" r="1" fillOpacity="0.48" />
           </g>
         </pattern>
       </defs>
 
-      <BackgroundOverlay design={design} />
-
-      {/* mannequin stand */}
-      <g stroke="rgba(35,33,31,0.18)" strokeWidth="2" fill="none">
-        {design.garment !== "leggings" && (
-          <ellipse cx={CX} cy={s.topY - (design.garment === "hoodie" ? 44 : 16)} rx="11" ry="14" fill="rgba(35,33,31,0.06)" />
-        )}
-        <line x1={CX} y1={s.hemY} x2={CX} y2={VIEW_H - 14} strokeDasharray="3 5" />
-        <line x1={CX - 34} y1={VIEW_H - 12} x2={CX + 34} y2={VIEW_H - 12} strokeWidth="3" strokeLinecap="round" />
+      <rect width="320" height="470" fill="#eeeae3" />
+      <g opacity=".12"><BackgroundOverlay design={design} /></g>
+      <rect x="14" y="14" width="292" height="442" rx="140" fill="url(#studio-light)" />
+      <ellipse cx="160" cy="449" rx="78" ry="8" fill="#392d25" opacity=".08" />
+      <g opacity=".35" stroke="#b8afa2" fill="none">
+        <path d="M22 38V22H38 M282 22H298V38 M22 432V448H38 M282 448H298V432" />
       </g>
-
+      {design.garment !== "leggings" && <path d={`M149 ${s.topY+15} L149 ${s.topY-14} Q160 ${s.topY-20} 171 ${s.topY-14} L171 ${s.topY+15}`} fill="#ddd4c6" stroke="#c6bbae" strokeWidth=".7" />}
       {/* hood — behind body */}
+      {!isDressLike(design.garment) && design.garment !== "leggings" && design.bottom !== "none" && (
+        <BottomPreview design={design} waistY={s.hemY-18} waistHalf={s.waistHalf} />
+      )}
       <motion.path
         initial={false}
         animate={{ d: s.hoodD, opacity: s.hoodOpacity, fill: color.hex }}
         transition={SPRING}
         stroke={stroke}
-        strokeWidth="1.5"
+        strokeWidth=".85"
       />
 
       {/* sleeves */}
@@ -118,7 +149,7 @@ export default function Preview({ design }: { design: Design }) {
             animate={{ d, opacity: s.sleeveOpacity, fill: color.hex }}
             transition={SPRING}
             stroke={stroke}
-            strokeWidth="1.5"
+            strokeWidth=".85"
             strokeLinejoin="round"
           />
           {patternFill !== "none" && (
@@ -130,6 +161,13 @@ export default function Preview({ design }: { design: Design }) {
               stroke="none"
             />
           )}
+          <motion.path initial={false} animate={{ d, opacity: s.sleeveOpacity }} transition={SPRING} fill="url(#cloth-shade)" pointerEvents="none" />
+        </g>
+      ))}
+      {design.garment !== "leggings" && design.sleeveShirring && design.sleeve !== "sleeveless" && [s.leftCuffD, s.rightCuffD].map((d, i) => (
+        <g key={`shirred-cuff-${i}`}>
+          <motion.path initial={false} animate={{ d }} transition={SPRING} fill="none" stroke={darken(color.hex, 0.2)} strokeWidth="3" strokeLinecap="round" />
+          <motion.path initial={false} animate={{ d }} transition={SPRING} fill="none" stroke={markColor} strokeWidth="1" strokeDasharray="1.5 2.2" strokeLinecap="round" />
         </g>
       ))}
 
@@ -139,8 +177,9 @@ export default function Preview({ design }: { design: Design }) {
         animate={{ d: s.bodyD, fill: color.hex, opacity: s.bodyOpacity }}
         transition={SPRING}
         stroke={stroke}
-        strokeWidth="1.5"
+        strokeWidth=".85"
         strokeLinejoin="round"
+        filter="url(#fabric-shadow)"
       />
       {patternFill !== "none" && (
         <motion.path
@@ -151,6 +190,18 @@ export default function Preview({ design }: { design: Design }) {
           stroke="none"
         />
       )}
+      <motion.path initial={false} animate={{ d: s.bodyD, opacity: s.bodyOpacity }} transition={SPRING} fill="url(#cloth-shade)" pointerEvents="none" />
+      <motion.path initial={false} animate={{ d: s.bodyD, opacity: s.bodyOpacity }} transition={SPRING} fill="url(#fabric-depth)" pointerEvents="none" />
+
+      <g clipPath="url(#body-clip)" opacity={s.bodyOpacity} pointerEvents="none">
+        <rect x="40" y="50" width="240" height="390" fill="url(#weave)" opacity={design.material === "silk" ? .2 : .8}/>
+        {[-.82,-.46,.42,.8].map((t,i) => {
+          const x = CX + s.waistHalf*t;
+          const end = CX + s.hemHalf*t;
+          return <path key={i} d={`M${x} ${s.underarmY+12} C${x-14} ${s.waistY} ${end+12} ${s.hemY-45} ${end+8} ${s.hemY+6} L${end-9} ${s.hemY+6} Q${x+10} ${s.waistY} ${x} ${s.underarmY+12}`} fill="url(#fold-light)" opacity={design.material === "silk" || design.material === "chiffon" ? .85 : .5}/>;
+        })}
+        <path d={`M${CX-s.hemHalf} ${s.hemY-5} Q${CX} ${s.hemY+10} ${CX+s.hemHalf} ${s.hemY-5}`} fill="none" stroke={stroke} strokeWidth=".6" opacity=".6"/>
+      </g>
 
       {/* leggings (하의) */}
       <motion.path
@@ -158,7 +209,7 @@ export default function Preview({ design }: { design: Design }) {
         animate={{ d: s.leggingsD, fill: color.hex, opacity: s.leggingsOpacity }}
         transition={SPRING}
         stroke={stroke}
-        strokeWidth="1.5"
+        strokeWidth=".85"
         strokeLinejoin="round"
       />
       {patternFill !== "none" && (
@@ -181,8 +232,9 @@ export default function Preview({ design }: { design: Design }) {
         }}
         transition={SPRING}
         stroke={markColor}
-        strokeWidth="1.5"
+        strokeWidth=".85"
       />
+      <motion.path initial={false} animate={{ d: s.leggingsD, opacity: s.leggingsOpacity }} transition={SPRING} fill="url(#leg-cloth-shade)" pointerEvents="none" />
 
       {/* collar (깃) */}
       <CollarOverlay design={design} s={s} fill={darken(color.hex, 0.12)} accent={darken(color.hex, 0.32)} stroke={stroke} />
@@ -206,7 +258,7 @@ export default function Preview({ design }: { design: Design }) {
         transition={SPRING}
         fill="none"
         stroke={markColor}
-        strokeWidth="1.5"
+        strokeWidth=".85"
         strokeLinejoin="round"
       />
 
@@ -798,7 +850,7 @@ function AccessoryOverlay({ design }: { design: Design }) {
           animate={{ opacity: 1 }}
           transition={{ type: "spring", stiffness: 180, damping: 23 }}
         >
-          <path d="M 18,-6 C 8,-6 1,2 0,15 L -4,61 C -5,72 4,81 18,81 C 32,81 41,72 40,61 L 36,15 C 35,2 28,-6 18,-6 Z" fill={carryColor.hex} stroke={carryStroke} strokeWidth="1.5" />
+          <path d="M 18,-6 C 8,-6 1,2 0,15 L -4,61 C -5,72 4,81 18,81 C 32,81 41,72 40,61 L 36,15 C 35,2 28,-6 18,-6 Z" fill={carryColor.hex} stroke={carryStroke} strokeWidth=".85" />
           <path d="M 7,13 C 11,5 25,5 29,13" fill="none" stroke={carryStroke} strokeWidth="2.3" strokeLinecap="round" />
           <path d="M 0,18 C -15,28 -13,54 -2,66 M 36,18 C 51,28 49,54 38,66" fill="none" stroke={carryStroke} strokeOpacity="0.55" strokeWidth="2.2" strokeLinecap="round" />
           <path d="M 4,31 L 32,31 L 29,56 C 27,63 9,63 7,56 Z" fill={carryShade} stroke={carryStroke} strokeOpacity="0.65" strokeWidth="1" />
@@ -833,7 +885,7 @@ function AccessoryOverlay({ design }: { design: Design }) {
         >
           <path d="M -17,-10 C -17,-32 17,-32 17,-10" fill="none" stroke={carryStroke} strokeWidth="4.2" strokeLinecap="round" />
           <path d="M -26,-8 C -23,-20 23,-20 26,-8 L 31,45 C 24,55 -24,55 -31,45 Z" fill={carryColor.hex} stroke={carryStroke} strokeWidth="1.6" strokeLinejoin="round" />
-          <path d="M -22,2 C -12,9 12,9 22,2" fill="none" stroke={carryHighlight} strokeWidth="1.5" strokeLinecap="round" />
+          <path d="M -22,2 C -12,9 12,9 22,2" fill="none" stroke={carryHighlight} strokeWidth=".85" strokeLinecap="round" />
           <path d="M -16,17 L 16,17 L 13,36 C 8,41 -8,41 -13,36 Z" fill={carryShade} stroke={carryStroke} strokeOpacity="0.55" strokeWidth="1" />
           <circle cx="0" cy="27" r="2.8" fill={carryHighlight} stroke={carryStroke} strokeWidth="0.8" />
           {design.carryStyle === "bow" && (
@@ -861,7 +913,7 @@ function AccessoryOverlay({ design }: { design: Design }) {
           animate={{ opacity: 1 }}
           transition={{ type: "spring", stiffness: 180, damping: 23 }}
         >
-          <ellipse cx="0" cy="26" rx="20" ry="25" fill={carryColor.hex} stroke={carryStroke} strokeWidth="1.5" />
+          <ellipse cx="0" cy="26" rx="20" ry="25" fill={carryColor.hex} stroke={carryStroke} strokeWidth=".85" />
           <circle cx="0" cy="-2" r="18" fill={darken(carryColor.hex, 0.04)} stroke={carryStroke} strokeWidth="1.4" />
           <circle cx="-11" cy="-18" r="7" fill={carryColor.hex} stroke={carryStroke} strokeWidth="1" />
           <circle cx="11" cy="-18" r="7" fill={carryColor.hex} stroke={carryStroke} strokeWidth="1" />
@@ -912,7 +964,7 @@ function AccessoryOverlay({ design }: { design: Design }) {
           transition={{ type: "spring", stiffness: 170, damping: 22 }}
         >
           <path d="M -4,77 C -20,118 -8,144 -24,178" fill="none" stroke="rgba(35,33,31,0.32)" strokeWidth="1.4" strokeDasharray="4 4" />
-          <path d="M 0,0 C 35,0 40,47 7,66 L 0,77 L -7,66 C -40,47 -35,0 0,0 Z" fill={carryColor.hex} stroke={carryStroke} strokeWidth="1.5" />
+          <path d="M 0,0 C 35,0 40,47 7,66 L 0,77 L -7,66 C -40,47 -35,0 0,0 Z" fill={carryColor.hex} stroke={carryStroke} strokeWidth=".85" />
           <path d="M -14,12 C -24,29 -19,48 -5,57" fill="none" stroke={carryHighlight} strokeWidth="3" strokeLinecap="round" />
           {design.carryStyle === "floral" && (
             <g fill={carryHighlight}>
@@ -954,7 +1006,7 @@ function AccessoryOverlay({ design }: { design: Design }) {
           <path d="M -35,34 C -33,0 33,0 35,34" fill="none" stroke={carryColor.hex} strokeWidth="2.4" strokeLinecap="round" />
           <rect x="-50" y="28" width="20" height="34" rx="8" fill={carryColor.hex} stroke={carryStroke} strokeWidth="1.4" />
           <rect x="30" y="28" width="20" height="34" rx="8" fill={carryColor.hex} stroke={carryStroke} strokeWidth="1.4" />
-          <path d="M -44,37 L -44,53 M 44,37 L 44,53" stroke={carryHighlight} strokeWidth="1.5" strokeLinecap="round" />
+          <path d="M -44,37 L -44,53 M 44,37 L 44,53" stroke={carryHighlight} strokeWidth=".85" strokeLinecap="round" />
           {design.carryStyle === "bow" && (
             <g transform="translate(0 4)" fill={carryHighlight} stroke={carryStroke} strokeWidth="0.8">
               <path d="M 0,0 C -12,-8 -15,7 -2,7 Z" />
@@ -1212,4 +1264,27 @@ function shirringPath(x: number, y: number): string {
     `q -3,5 0,10`,
     `q 3,5 0,10`,
   ].join(" ");
+}
+
+function BottomPreview({design, waistY, waistHalf}: {design: Design; waistY: number; waistHalf: number}) {
+  const color = COLORS.find(c => c.id === design.bottomColorId)?.hex ?? "#F3EDE2";
+  const end = design.bottomLength === "mini" ? Math.min(waistY+85,420) : design.bottomLength === "midi" ? 385 : 435;
+  const princess = design.bottom === "princess";
+  const width = princess ? 133 : Math.min(105,waistHalf+35);
+  const outline = design.bottom === "pants"
+    ? `M${160-waistHalf} ${waistY} Q${105} ${waistY+40} 112 ${end} L153 ${end} L160 ${waistY+64} L167 ${end} L208 ${end} Q215 ${waistY+40} ${160+waistHalf} ${waistY}Z`
+    : `M${160-waistHalf} ${waistY} C${160-waistHalf-8} ${waistY+65} ${160-width+14} ${end-60} ${160-width} ${end} Q160 ${end+20} ${160+width} ${end} C${160+width-14} ${end-60} ${160+waistHalf+8} ${waistY+65} ${160+waistHalf} ${waistY}Z`;
+  return <g>
+    <defs><clipPath id="bottom-clip"><path d={outline}/></clipPath></defs>
+    <path d={outline} fill={color} stroke={darken(color,.28)} strokeWidth=".85"/>
+    <g clipPath="url(#bottom-clip)">
+      <path d={outline} fill="url(#cloth-shade)"/>
+      {[-.85,-.55,-.25,.25,.55,.85].map((t,i)=><path key={i} d={`M${160+waistHalf*t} ${waistY} Q${160+width*t*.7} ${end-70} ${160+width*t+12} ${end+15} L${160+width*t-10} ${end+15} Q${160+width*t*.7} ${end-70} ${160+waistHalf*t} ${waistY}`} fill="url(#fold-light)"/>)}
+      {princess && <>
+        <path d={`M${160-waistHalf} ${waistY} Q148 ${end-60} ${160-width} ${end-13} M${160+waistHalf} ${waistY} Q172 ${end-60} ${160+width} ${end-13}`} fill="none" stroke={darken(color,.23)} strokeWidth="3"/>
+        <path d={`M${160-width} ${end-8} Q160 ${end+12} ${160+width} ${end-8}`} fill="none" stroke="#c8a56c" strokeWidth="3" strokeDasharray="2 4"/>
+      </>}
+    </g>
+    <path d={`M${160-waistHalf} ${waistY+3} Q160 ${waistY+9} ${160+waistHalf} ${waistY+3}`} fill="none" stroke={darken(color,.25)} strokeWidth="5"/>
+  </g>;
 }

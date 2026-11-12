@@ -23,6 +23,10 @@ export interface SilhouetteShapes {
   leggingsBandHalf: number;
   leftSleeveD: string;
   rightSleeveD: string;
+  leftShirringD: string;
+  rightShirringD: string;
+  leftCuffD: string;
+  rightCuffD: string;
   sleeveOpacity: number;
   hoodD: string;
   hoodOpacity: number;
@@ -76,7 +80,7 @@ export function buildShapes(design: Design): SilhouetteShapes {
   // --- vertical landmarks ---
   const offShoulder = design.neckline === "off";
   const topY = offShoulder ? 72 : 56;
-  const shoulderY = topY + 26;
+  const shoulderY = topY + 14;
   const underarmY = shoulderY + 50;
   const waistY = 202;
 
@@ -85,7 +89,7 @@ export function buildShapes(design: Design): SilhouetteShapes {
   if (isDressLike(design.garment)) {
     hemY = design.length === "mini" ? 300 : design.length === "maxi" ? 432 : 365;
   } else {
-    hemY = design.length === "crop" ? 218 : design.length === "long" ? 302 : 260;
+    hemY = design.length === "crop" ? 200 : design.length === "long" ? 280 : 238;
     if (design.garment === "jumper") hemY = Math.min(hemY, 280);
   }
 
@@ -93,6 +97,7 @@ export function buildShapes(design: Design): SilhouetteShapes {
   if (design.fit === "aline") flare = (hemY - waistY) * 0.42 + 10;
   else if (isDressLike(design.garment)) flare = (hemY - waistY) * 0.22 + 6;
   else if (design.fit === "over") flare = 8;
+  if (isDressLike(design.garment) && design.dressSkirt === "princess") flare = Math.min(85, (hemY - waistY) * .48);
   const hemHalf = waist + flare;
 
   // --- neckline ---
@@ -201,6 +206,17 @@ export function buildShapes(design: Design): SilhouetteShapes {
     const ccy = rootY + dy * sleeveLen;
     const outer = { x: ccx - px * cuffHalf, y: ccy - py * cuffHalf };
     const inner = { x: ccx + px * cuffHalf, y: ccy + py * cuffHalf };
+    if (design.sleeveShirring && design.sleeve !== "sleeveless") {
+      // Preserve the sleeve length and width; flare only the ruffled end.
+      const point = (along: number, across: number) => pt(rootX + dx*along + px*across, rootY + dy*along + py*across);
+      const w = cuffHalf * 1.2;
+      const waves = Array.from({length: 6}, (_, i) => {
+        const start = -w + 2*w*i/6;
+        const end = -w + 2*w*(i+1)/6;
+        return `Q ${point(sleeveLen + (i%2 === 0 ? 9 : -5), (start+end)/2)} ${point(sleeveLen, end)}`;
+      }).join(" ");
+      return `M ${pt(S.x,S.y)} C ${point(sleeveLen*.25,-cuffHalf*1.3)} ${point(sleeveLen-22,-cuffHalf*.78)} ${point(sleeveLen,-w)} ${waves} C ${point(sleeveLen-22,cuffHalf*.78)} ${point(sleeveLen*.3,cuffHalf*.8)} ${pt(U.x,U.y)} Z`;
+    }
     const oc = {
       x: S.x + dx * sleeveLen * 0.5 - px * cuffHalf * bulge,
       y: S.y + dy * sleeveLen * 0.5 - py * cuffHalf * bulge,
@@ -216,6 +232,18 @@ export function buildShapes(design: Design): SilhouetteShapes {
       `C ${pt(ic.x, ic.y)} ${pt(U.x + dx * 4, U.y + dy * 4)} ${pt(U.x, U.y)}`,
       `Z`,
     ].join(" ");
+  }
+
+  function cuffD(side: -1 | 1): string {
+    const S = side === -1 ? lS : rS;
+    const U = side === -1 ? lU : rU;
+    const dx = side * dirXMag, dy = dirY, px = -side * dy, py = dirXMag;
+    const rootX = (S.x + U.x) / 2 + dx * sleeveLen;
+    const rootY = (S.y + U.y) / 2 + dy * sleeveLen;
+    const a = {x:rootX-px*cuffHalf*.9-dx*12,y:rootY-py*cuffHalf*.9-dy*12};
+    const b = {x:rootX+px*cuffHalf*.9-dx*12,y:rootY+py*cuffHalf*.9-dy*12};
+    const mid = {x:rootX-dx*10,y:rootY-dy*10};
+    return `M ${pt(a.x,a.y)} Q ${pt(mid.x-px*3,mid.y-py*3)} ${pt(mid.x,mid.y)} Q ${pt(mid.x+px*3,mid.y+py*3)} ${pt(b.x,b.y)}`;
   }
 
   // --- hood (hoodie only) ---
@@ -302,6 +330,10 @@ export function buildShapes(design: Design): SilhouetteShapes {
     leggingsBandHalf: legWaist - 3,
     leftSleeveD: sleeveD(-1),
     rightSleeveD: sleeveD(1),
+    leftShirringD: "",
+    rightShirringD: "",
+    leftCuffD: design.sleeveShirring ? cuffD(-1) : "",
+    rightCuffD: design.sleeveShirring ? cuffD(1) : "",
     sleeveOpacity: isLeg ? 0 : sleeveOpacity,
     hoodD,
     hoodOpacity: hood ? 1 : 0,

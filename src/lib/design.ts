@@ -141,7 +141,7 @@ export const PATTERNS: Option<PatternId>[] = [
   { id: "zigzag", ko: "지그재그", en: "zigzag chevron" },
   { id: "heart", ko: "하트", en: "heart-print" },
   { id: "star", ko: "별", en: "star-print" },
-  { id: "leopard", ko: "레오파드", en: "leopard-print" },
+  { id: "leopard", ko: "표범 무늬", en: "leopard-print" },
 ];
 
 export const COLLARS: Option<CollarId>[] = [
@@ -280,6 +280,7 @@ export const COLORS: ColorOption[] = [
   { id: "charcoal", ko: "차콜", en: "charcoal gray", hex: "#55514C" },
   { id: "beige", ko: "베이지", en: "warm beige", hex: "#D9C5A3" },
   { id: "pink", ko: "블러시 핑크", en: "blush pink", hex: "#F0C3CD" },
+  { id: "hotpink", ko: "찐핑크", en: "vivid hot pink", hex: "#FF1493" },
   { id: "lavender", ko: "라벤더", en: "soft lavender", hex: "#C4B5E0" },
   { id: "skyblue", ko: "스카이 블루", en: "sky blue", hex: "#A9CBE8" },
   { id: "mint", ko: "민트", en: "mint green", hex: "#B5E0D0" },
@@ -291,10 +292,15 @@ export const COLORS: ColorOption[] = [
 ];
 
 export interface Design {
+  bottom: "none" | "pants" | "skirt" | "princess";
+  bottomColorId: string;
+  bottomLength: "mini" | "midi" | "maxi";
+  dressSkirt: "basic" | "princess";
   garment: GarmentId;
   fit: FitId;
   length: LengthId;
   sleeve: SleeveId;
+  sleeveShirring: boolean;
   neckline: NecklineId;
   collar: CollarId;
   colorId: string;
@@ -314,10 +320,15 @@ export interface Design {
 }
 
 export const DEFAULT_DESIGN: Design = {
+  bottom: "none",
+  bottomColorId: "ivory",
+  bottomLength: "maxi",
+  dressSkirt: "basic",
   garment: "tshirt",
   fit: "regular",
   length: "midi",
   sleeve: "short",
+  sleeveShirring: false,
   neckline: "round",
   collar: "none",
   colorId: "ivory",
@@ -496,6 +507,9 @@ export function buildPrompt(design: Design): string {
     design.sleeve === "sleeveless"
       ? "sleeveless design"
       : `${sleeve.en} sleeves`;
+  const finishedSleeveText = design.sleeveShirring && design.sleeve !== "sleeveless"
+    ? `${sleeveText} with visible delicate shirring at the sleeve ends, softly gathered lightweight fluttery fabric`
+    : sleeveText;
 
   const fitArticle = article(fit.en) === "an" ? "An" : "A";
 
@@ -516,7 +530,13 @@ export function buildPrompt(design: Design): string {
   ]
     .filter((x): x is string => Boolean(x))
     .join(" and ");
-  const accessorySentence = accessoryText ? `, with ${accessoryText}` : "";
+  const bottomColor = COLORS.find(c => c.id === design.bottomColorId)?.en ?? "ivory";
+  const bottomText = design.garment !== "leggings" && !isDressLike(design.garment) && design.bottom !== "none"
+    ? ` Paired with a separate ${bottomColor} ${design.bottomLength}-length ${design.bottom === "pants" ? "pair of trousers" : design.bottom === "princess" ? "voluminous medieval-fantasy princess ball-gown skirt with layered overskirt and petticoat" : "A-line skirt"}. Show both top and bottom in a complete full-length outfit.`
+    : isDressLike(design.garment) && design.dressSkirt === "princess"
+      ? " The dress has a fitted bodice and a very full medieval-fantasy princess ball-gown skirt with an ornate layered overskirt and petticoat."
+      : "";
+  const accessorySentence = (accessoryText ? `, with ${accessoryText}` : "") + bottomText;
   const backgroundText = `${background.en} background`;
 
   const shoe = find(SHOES, design.shoe);
@@ -527,8 +547,8 @@ export function buildPrompt(design: Design): string {
       : "";
   const displayText =
     design.shoe !== "none"
-      ? `Studio fashion photography, full-body front view, ${backgroundText}, headless mannequin display (no face), photorealistic, high detail.`
-      : `Studio product photography, front view, ${backgroundText}, mannequin display (no face), photorealistic, high detail.`;
+      ? `Studio fashion photography, full-body front view, ${backgroundText}, photorealistic, high detail.`
+      : `Studio product photography, front view, ${backgroundText}, photorealistic, high detail.`;
 
   if (design.garment === "leggings") {
     const capFit = fit.en.charAt(0).toUpperCase() + fit.en.slice(1);
@@ -542,7 +562,7 @@ export function buildPrompt(design: Design): string {
   return (
     `${fitArticle} ${fit.en} women's ${garment.en} in ${color.en}, made of ${material.en}, ` +
     `featuring ${patternText} with ${detailText}, ${neckText}, ` +
-    `${sleeveText}, ${length.en}-length${accessorySentence}.` +
+    `${finishedSleeveText}, ${length.en}-length${accessorySentence}.` +
     `${styledWith} ${displayText}`
   );
 }
